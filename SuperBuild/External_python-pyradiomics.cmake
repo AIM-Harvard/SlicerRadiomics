@@ -22,9 +22,6 @@ file(APPEND ${_env_script}
 # Added by '${CMAKE_CURRENT_LIST_FILE}'
 set(ENV{PATH} \"${CMAKE_COMMAND_DIR}${pathsep}$ENV{PATH}\")
 ")
-# also add it to the cmake module path
-# set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_COMMAND_DIR})
-# message(STATUS "cmake module path ${CMAKE_MODULE_PATH}")
 
 # Build the full path to setup.py
 set(SETUPPATH "${CMAKE_BINARY_DIR}/${proj}")
@@ -58,5 +55,10 @@ ExternalProject_Add(python-${proj}
     INSTALL_COMMAND ${INSTALL_COMMAND}
     )
 
-set(${proj}_DIR ~/.local/${proj})
+# pyradiomics gets installed where the SlicerPyhon can find it
+get_filename_component(PYTHON_LIB_DIR "${PYTHON_LIBRARY}" DIRECTORY)
+set(PYTHON_PACKAGES_DIR "${PYTHON_LIB_DIR}/python2.7/site-packages")
+MESSAGE(STATUS "Setting proj dir, python lib dir = ${PYTHON_LIB_DIR}, PYTHON_PACKAGES_DIR = ${PYTHON_PACKAGES_DIR}")
+
+set(${proj}_DIR ${PYTHON_PACKAGES_DIR})
 mark_as_superbuild(${proj}_DIR:PATH)
