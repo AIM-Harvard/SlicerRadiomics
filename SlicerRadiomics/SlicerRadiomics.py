@@ -17,7 +17,7 @@ class SlicerRadiomics(ScriptedLoadableModule):
 
   def __init__(self, parent):
     ScriptedLoadableModule.__init__(self, parent)
-    self.parent.title = "SlicerRadiomics" # TODO make this more human readable by adding spaces
+    self.parent.title = "SlicerRadiomics"
     self.parent.categories = ["Informatics"]
     self.parent.dependencies = []
     self.parent.contributors = ["Nicole Aucion (BWH)"]
@@ -84,47 +84,118 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
     parametersFormLayout.addRow("Input Mask Volume: ", self.inputMaskSelector)
 
     #
-    # Feature class selection, defaults to all
+    # Feature class selection
     #
-    self.featuresGroupBox = ctk.ctkCollapsibleGroupBox(self.parent)
-    self.layout.addWidget(self.featuresGroupBox)
-    self.featuresGroupBox.collapsed = False
-    self.featuresGroupBox.title = "Features"
-#    layout = qt.QHBoxLayout(self.featuresGroupBox)
-    self.featuresGroupBox.setLayout(qt.QHBoxLayout())
+    self.featuresLayout = qt.QHBoxLayout()
+    parametersFormLayout.addRow("Features:", self.featuresLayout)
 
-
-    self.featuresButtonGroup = qt.QButtonGroup(self.featuresGroupBox)
+    self.featuresButtonGroup = qt.QButtonGroup(self.featuresLayout)
     self.featuresButtonGroup.exclusive = False
 
-    # create a checkbox for each feature, checked by default
+    # create a checkbox for each feature
     self.features = ["firstorder", "glcm", "glrlm", "shape", "glszm", "gldm", "ngtdm", "gldzm"]
     featureButtons = {}
     for feature in self.features:
       featureButtons[feature] = qt.QCheckBox(feature)
-      print 'Making a button for ', feature, ' = ', featureButtons[feature]
-      # TODO: enable all features by default
+      # TODO: decide which features to enable by default
       featureButtons[feature].checked = False
       if feature == 'firstorder':
         featureButtons[feature].checked = True
       self.featuresButtonGroup.addButton(featureButtons[feature])
-      self.featuresGroupBox.layout().addWidget(featureButtons[feature])
+      self.featuresLayout.layout().addWidget(featureButtons[feature])
       # set the ID to be the index of this feature in the list
       self.featuresButtonGroup.setId(featureButtons[feature], self.features.index(feature))
 
-    print 'Feature buttons group buttons = ',self.featuresButtonGroup.buttons()
+    # Add buttons to select all or none
+    self.buttonsLayout = qt.QHBoxLayout()
+    parametersFormLayout.addRow("Toggle Features:", self.buttonsLayout)
+
+    self.calculateAllFeaturesButton = qt.QPushButton("All Features")
+    self.calculateAllFeaturesButton.toolTip = "Calcualte all feature classes."
+    self.calculateAllFeaturesButton.enabled = True
+    self.buttonsLayout.addWidget(self.calculateAllFeaturesButton)
+    self.calculateNoFeaturesButton = qt.QPushButton("No Features")
+    self.calculateNoFeaturesButton.toolTip = "Calculate no feature classes."
+    self.calculateNoFeaturesButton.enabled = True
+    self.buttonsLayout.addWidget(self.calculateNoFeaturesButton)
+
+
+    #
+    # Feature calculation options
+    #
+    optionsCollapsibleButton = ctk.ctkCollapsibleButton()
+    optionsCollapsibleButton.text = "Options"
+    optionsCollapsibleButton.collapsed = True
+    self.layout.addWidget(optionsCollapsibleButton)
+
+    # Layout within the dummy collapsible button
+    optionsFormLayout = qt.QFormLayout(optionsCollapsibleButton)
+
+    # bin width, defaults to 25
+    self.binWidthSliderWidget = ctk.ctkSliderWidget()
+    self.binWidthSliderWidget.singleStep = 1
+    self.binWidthSliderWidget.decimals = 0
+    self.binWidthSliderWidget.minimum = 1
+    self.binWidthSliderWidget.maximum = 100
+    self.binWidthSliderWidget.value = 25
+    self.binWidthSliderWidget.toolTip = "Set the bin width"
+    optionsFormLayout.addRow("Bin Width", self.binWidthSliderWidget)
+
+    # symmetricalGLCM flag, defaults to false
+    self.symmetricalGLCMCheckBox = qt.QCheckBox()
+    self.symmetricalGLCMCheckBox.checked = 0
+    self.symmetricalGLCMCheckBox.toolTip = "Use a symmetrical GLCM matrix"
+    optionsFormLayout.addRow("Enforce Symmetrical GLCM", self.symmetricalGLCMCheckBox)
+
+    # label for the mask, defaults to 1
+    self.labelSliderWidget = ctk.ctkSliderWidget()
+    self.labelSliderWidget.singleStep = 1
+    self.labelSliderWidget.decimals = 0
+    self.labelSliderWidget.minimum = 0
+    self.labelSliderWidget.maximum = 255
+    self.labelSliderWidget.value = 1
+    self.labelSliderWidget.toolTip = "Set the label to use for masking the image"
+    optionsFormLayout.addRow("Label", self.labelSliderWidget)
+
+    # verbose flag, defaults to false
+    self.verboseCheckBox = qt.QCheckBox()
+    self.verboseCheckBox.checked = 0
+    optionsFormLayout.addRow("Verbose", self.verboseCheckBox)
+
+    #
+    # Output table
+    #
+    outputCollapsibleButton = ctk.ctkCollapsibleButton()
+    outputCollapsibleButton.text = "Output"
+    self.layout.addWidget(outputCollapsibleButton)
+    outputFormLayout = qt.QFormLayout(outputCollapsibleButton)
+
+    self.outputTableSelector = slicer.qMRMLNodeComboBox()
+    self.outputTableSelector.nodeTypes = ["vtkMRMLTableNode"]
+    self.outputTableSelector.addEnabled = True
+    self.outputTableSelector.selectNodeUponCreation = True
+    self.outputTableSelector.renameEnabled = True
+    self.outputTableSelector.removeEnabled = True
+    self.outputTableSelector.noneEnabled = False
+    self.outputTableSelector.setMRMLScene( slicer.mrmlScene )
+    self.outputTableSelector.toolTip = "Select the table where features will be saved, resets feature values on each run."
+    outputFormLayout.addRow("Output table:", self.outputTableSelector)
+
     #
     # Apply Button
     #
     self.applyButton = qt.QPushButton("Apply")
     self.applyButton.toolTip = "Run the algorithm."
     self.applyButton.enabled = False
-    parametersFormLayout.addRow(self.applyButton)
+    self.layout.addWidget(self.applyButton)
 
     # connections
+    self.calculateAllFeaturesButton.connect('clicked(bool)', self.onCalculateAllFeaturesButton)
+    self.calculateNoFeaturesButton.connect('clicked(bool)', self.onCalculateNoFeaturesButton)
     self.applyButton.connect('clicked(bool)', self.onApplyButton)
     self.inputVolumeSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.onSelect)
     self.inputMaskSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.onSelect)
+    self.outputTableSelector.connect('currentNodeChanged(vtkMRMLNode*)', self.onSelect)
 
     # Add vertical spacer
     self.layout.addStretch(1)
@@ -136,7 +207,10 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
     pass
 
   def onSelect(self):
-    self.applyButton.enabled = self.inputVolumeSelector.currentNode() and self.inputMaskSelector.currentNode()
+    self.applyButton.enabled = self.inputVolumeSelector.currentNode() and self.inputMaskSelector.currentNode() and (self.outputTableSelector.currentNode() is not None)
+    if self.outputTableSelector.currentNode():
+      self.outputTableSelector.baseName = self.inputMaskSelector.currentNode().GetName() + ' features'
+
 
   def getCheckedFeatureClasses(self):
     checkedFeatures = []
@@ -148,10 +222,41 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
         checkedFeatures.append(feature)
     return checkedFeatures
 
+  def onCalculateAllFeaturesButton(self):
+    featureButtons = self.featuresButtonGroup.buttons()
+    for featureButton in featureButtons:
+      featureButton.checked = True
+
+  def onCalculateNoFeaturesButton(self):
+    featureButtons = self.featuresButtonGroup.buttons()
+    for featureButton in featureButtons:
+      featureButton.checked = False
+
   def onApplyButton(self):
     logic = SlicerRadiomicsLogic()
     featureClasses = self.getCheckedFeatureClasses()
-    logic.run(self.inputVolumeSelector.currentNode(), self.inputMaskSelector.currentNode(), featureClasses)
+
+    # Lock GUI
+    self.applyButton.text = "Working..."
+    self.applyButton.setEnabled(False)
+    slicer.app.processEvents()
+
+    # Compute features
+    kwargs = {}
+    kwargs['binWidth'] = int(self.binWidthSliderWidget.value)
+    kwargs['symmetricalGLCM'] = self.symmetricalGLCMCheckBox.checked
+    kwargs['verbose'] = self.verboseCheckBox.checked
+    kwargs['label'] = int(self.labelSliderWidget.value)
+
+    logic.run(self.inputVolumeSelector.currentNode(), self.inputMaskSelector.currentNode(), featureClasses, **kwargs)
+    logic.exportToTable(self.outputTableSelector.currentNode())
+
+    # Unlock GUI
+    self.applyButton.setEnabled(True)
+    self.applyButton.text = "Apply"
+
+    # Show results
+    logic.showTable(self.outputTableSelector.currentNode())
 
 #
 # SlicerRadiomicsLogic
@@ -167,6 +272,9 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
   https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
   """
 
+  def __init__(self):
+    self.featureValues = {}
+
   def hasImageData(self,volumeNode):
     """This is an example logic method that
     returns true if the passed in volume
@@ -180,24 +288,17 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
       return False
     return True
 
-  def calculateFeature(self, inputVolume, inputMaskVolume, feature):
+  def calculateFeature(self, inputVolume, inputMaskVolume, feature, **kwargs):
     """
     Calculate a single feature on the input MRML volume nodes
     """
-    # TBD: get itk image
-    # testImage = inputVolume.GetImageData()
-    # testMask = inputMaskVolume.GetImageData()
+    volumeName = inputVolume.GetName()
+    maskName = inputMaskVolume.GetName()
 
-    volumeFileName = inputVolume.GetStorageNode().GetFileName()
-    maskFileName = inputMaskVolume.GetStorageNode().GetFileName()
-    testImage = sitk.ReadImage(volumeFileName)
-    testMask = sitk.ReadImage(maskFileName)
-
-    # TBD: update form default arguments
-    kwargs = {}
-    kwargs['binWidth'] = 25
-    kwargs['symmetricalGLCM'] = False  # Current baseline is based upon assymetrical GLCM
-    kwargs['verbose'] = False
+    import sitkUtils
+    testImage = sitk.ReadImage( sitkUtils.GetSlicerITKReadWriteAddress(volumeName) )
+    # TODO: debug why the maskName works in the test, but not from the GUI, it tries to read the table node
+    testMask = sitk.ReadImage( sitkUtils.GetSlicerITKReadWriteAddress( inputMaskVolume.GetID() ) )
 
     if feature == 'firstorder':
       featureClass = firstorder.RadiomicsFirstOrder(testImage, testMask, **kwargs)
@@ -217,26 +318,58 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
       featureClass = gldzm.RadiomicsGLDZM(testImage, testMask, **kwargs)
 
     featureClass.enableAllFeatures()
+    self.delayDisplay('Calculating %s for volume %s and mask %s' % (feature, inputVolume.GetName(), inputMaskVolume.GetName()), 200)
     featureClass.calculateFeatures()
     # get the result
     self.featureValues[feature] = featureClass.featureValues
 
-  def run(self, inputVolume, inputMaskVolume, featureClasses):
+  def exportToTable(self, table):
+    """
+    Export features to table node
+    """
+    tableWasModified = table.StartModify()
+    table.RemoveAllColumns()
+
+    featureClasses = self.featureValues.keys()
+
+    # Define table columns
+    for k in ['Feature Class', 'Feature Name', 'Value']:
+      col = table.AddColumn()
+      col.SetName(k)
+    # Fill columns
+    for featureClass in featureClasses:
+      featureNames = self.featureValues[featureClass].keys()
+      for featureName in featureNames:
+        rowIndex = table.AddEmptyRow()
+        table.SetCellText(rowIndex, 0, featureClass)
+        table.SetCellText(rowIndex, 1, featureName)
+        table.SetCellText(rowIndex, 2, str(self.featureValues[featureClass][featureName]))
+
+    table.Modified()
+    table.EndModify(tableWasModified)
+
+  def showTable(self, table):
+    """
+    Switch to a layout where tables are visible and show the selected one.
+    """
+    currentLayout = slicer.app.layoutManager().layout
+    layoutWithTable = slicer.modules.tables.logic().GetLayoutWithTable(currentLayout)
+    slicer.app.layoutManager().setLayout(layoutWithTable)
+    slicer.app.applicationLogic().GetSelectionNode().SetReferenceActiveTableID(table.GetID())
+    slicer.app.applicationLogic().PropagateTableSelection()
+
+
+  def run(self, inputVolume, inputMaskVolume, featureClasses, **kwargs):
     """
     Run the actual algorithm
     """
 
     logging.info('Processing started')
-    logging.debug('featureClasses = %s' % (featureClasses))
-    logging.debug('input volume file name = %s' % (inputVolume.GetStorageNode().GetFileName()))
-
-
-    self.featureValues = {}
 
     for feature in featureClasses:
-      self.calculateFeature(inputVolume, inputMaskVolume, feature)
+      self.calculateFeature(inputVolume, inputMaskVolume, feature, **kwargs)
 
-    logging.info('Processing completed')
+    logging.info('Processing completed, feature values:')
 
     logging.info(self.featureValues)
 
@@ -279,8 +412,8 @@ class SlicerRadiomicsTest(ScriptedLoadableModuleTest):
     #
     import urllib
     downloads = (
-        ('https://github.com/Radiomics/pyradiomics/blob/master/data/lung1_image.nrrd', 'lung1_image.nrrd', sitk.ReadImage),
-        ('https://github.com/Radiomics/pyradiomics/blob/master/data/lung1_label.nrrd', 'lung1_label.nrrd', sitk.ReadImage),
+        ('http://slicer.kitware.com/midas3/download/item/269197/lung1_image.nrrd', 'lung1_image.nrrd', slicer.util.loadVolume),
+        ('http://slicer.kitware.com/midas3/download/item/269198/lung1_label.nrrd', 'lung1_label.nrrd', slicer.util.loadLabelVolume),
         )
 
     for url,name,loader in downloads:
@@ -291,7 +424,7 @@ class SlicerRadiomicsTest(ScriptedLoadableModuleTest):
       if loader:
         logging.info('Loading %s...' % (name,))
         loader(filePath)
-    self.delayDisplay('Finished with download and loading')
+    self.delayDisplay('Finished with download and loading %d volumes' % (slicer.mrmlScene.GetNumberOfNodesByClass('vtkMRMLVolumeNode')))
 
     volumeNode = slicer.util.getNode(pattern="lung1_image")
     maskNode = slicer.util.getNode(pattern="lung1_label")
@@ -299,8 +432,19 @@ class SlicerRadiomicsTest(ScriptedLoadableModuleTest):
     self.assertIsNotNone( logic.hasImageData(volumeNode) )
     self.assertIsNotNone( logic.hasImageData(maskNode) )
 
-    features = self.getCheckedFeatureClasses()
+    features = ['firstorder', 'shape']
+    kwargs = {}
+    kwargs['binWidth'] = 25
+    kwargs['symmetricalGLCM'] = False
+    kwargs['verbose'] = False
+    kwargs['label'] = 1
     for feature in features:
-       logic.calculateFeature(volumeNode, maskNode, feature)
+       logic.calculateFeature(volumeNode, maskNode, feature, **kwargs)
+
+    tableNode = slicer.vtkMRMLTableNode()
+    tableNode.SetName(maskNode.GetName())
+    slicer.mrmlScene.AddNode(tableNode)
+    logic.exportToTable(tableNode)
+    logic.showTable(tableNode)
 
     self.delayDisplay('Test passed!')

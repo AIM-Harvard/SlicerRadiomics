@@ -8,39 +8,22 @@ include(ExternalProjectForNonCMakeProject)
 
 get_filename_component(CMAKE_COMMAND_DIR "${CMAKE_COMMAND}" DIRECTORY)
 
-set(pathsep ":")
-if(WIN32)
-  set(pathsep ";")
-endif()
-# environment
-set(_env_script ${CMAKE_BINARY_DIR}/${proj}_Env.cmake)
-MESSAGE(STATUS "env script = ${_env_script}")
-ExternalProject_Write_SetBuildEnv_Commands(${_env_script})
-ExternalProject_Write_SetPythonSetupEnv_Commands(${_env_script} APPEND)
-file(APPEND ${_env_script}
-"#------------------------------------------------------------------------------
-# Added by '${CMAKE_CURRENT_LIST_FILE}'
-set(ENV{PATH} \"${CMAKE_COMMAND_DIR}${pathsep}$ENV{PATH}\")
-")
-
 # Build the full path to setup.py
 set(SETUPPATH "${CMAKE_BINARY_DIR}/${proj}")
 message(STATUS "External_pyradiomics: path to setup.py = ${SETUPPATH}")
-set(INSTALL_COMMAND ${PYTHON_EXECUTABLE} ${SETUPPATH}/setup.py install -G ${CMAKE_GENERATOR})
+set(INSTALL_COMMAND ${PYTHON_EXECUTABLE} ${SETUPPATH}/setup.py install)
+
 
 
 if(NOT DEFINED git_protocol)
   set(git_protocol "git")
 endif()
 
-# ToDo: update this when the repo is public and the branch with CMakeLists
-# has been integrated
+# ToDo: remove hard coded git protocol this when the repo is public
 set(git_protocol "https")
 # Select the master branch by default
-# set (tag master)
-# set (repo "${git_protocol}://github.com/Radiomics/${proj}.git")
-set(tag c-matrices)
-set(repo "${git_protocol}://github.com/JoostJM/${proj}.git")
+set (tag master)
+set (repo "${git_protocol}://github.com/Radiomics/${proj}.git")
 
 # Install pyradiomics
 ExternalProject_Add(python-${proj}

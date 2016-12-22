@@ -21,6 +21,6 @@ against, the following are requirements (written for Mac):
 - Install CMake if you didn't already use it to build Slicer
   pip install cmake
 
-- Use cmake to configure and generate make files for SlicerRadiomics
+- Use cmake to configure and generate make files for SlicerRadiomics, make sure thate Slicer_DIR is set to the Slicer build you installed scikit to.
 
-- make. The pyradiomics package will get installed in the Slicer python install directory.
+- make. The pyradiomics package will get installed in the Slicer python install directory. You can then add the Slicer Radiomics extension as a Qt scripted module.
