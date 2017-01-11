@@ -36,6 +36,14 @@ ExternalProject_Include_Dependencies(${proj}
   SUPERBUILD_VAR ${EXTENSION_NAME}_SUPERBUILD
   )
 
+# XXX Workaround https://gitlab.kitware.com/cmake/cmake/issues/15448
+#     and explicitly pass GIT_EXECUTABLE and Subversion_SVN_EXECUTABLE
+foreach(varname IN ITEMS GIT_EXECUTABLE Subversion_SVN_EXECUTABLE)
+  if(EXISTS "${${varname}}")
+    list(APPEND DCMQI_EP_CMAKE_CACHE_ARGS -D${varname}:FILEPATH=${${varname}})
+  endif()
+endforeach()
+
 ExternalProject_Add(${proj}
   ${${proj}_EP_ARGS}
   DOWNLOAD_COMMAND ""
@@ -56,6 +64,7 @@ ExternalProject_Add(${proj}
     -DMIDAS_PACKAGE_API_KEY:STRING=${MIDAS_PACKAGE_API_KEY}
     -D${EXTENSION_NAME}_SUPERBUILD:BOOL=OFF
     -DEXTENSION_SUPERBUILD_BINARY_DIR:PATH=${${EXTENSION_NAME}_BINARY_DIR}
+    ${DCMQI_EP_CMAKE_CACHE_ARGS}
   DEPENDS
     ${${proj}_DEPENDS}
   )
