@@ -4,7 +4,7 @@ import vtk, qt, ctk, slicer
 from slicer.ScriptedLoadableModule import *
 import logging
 import SimpleITK as sitk
-from radiomics import imageoperations, firstorder, glcm, glrlm, shape, glszm, gldm, ngtdm, gldzm
+from radiomics import imageoperations, firstorder, glcm, glrlm, shape, glszm
 
 #
 # SlicerRadiomics
@@ -93,7 +93,7 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
     self.featuresButtonGroup.exclusive = False
 
     # create a checkbox for each feature
-    self.features = ["firstorder", "glcm", "glrlm", "shape", "glszm", "gldm", "ngtdm", "gldzm"]
+    self.features = ["firstorder", "glcm", "glrlm", "shape", "glszm"]
     featureButtons = {}
     for feature in self.features:
       featureButtons[feature] = qt.QCheckBox(feature)
