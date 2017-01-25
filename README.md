@@ -45,5 +45,6 @@ Slicer additional modules path (3D Slicer Settings > Modules > Additional module
 # Acknowledgments
 
 This project is supporte in part by the National Institutes of Health, National
-Cancer Institute Informatics Technology for Cancer Research (ITCR) program via
+Cancer Institute [Informatics Technology for Cancer Research (ITCR)
+program](https://itcr.nci.nih.gov) via
 grant U24 CA194354 (PI Hugo Aerts).
