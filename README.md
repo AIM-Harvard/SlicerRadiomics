@@ -1,26 +1,49 @@
-# SlicerRadiomics
-A Slicer extension wrapping pyradiomics.
+# About
 
-This relies on the pyradiomics repository:
-https://github.com/Radiomics/pyradiomics
-First developed in conjunction with a branch that includes a CMakeLists.txt file:
-https://github.com/JoostJM/pyradiomics/tree/c-matrices
+SlicerRadiomics is an extension for [3D Slicer](http://slicer.org) that
+encapsulates [pyradiomics](https://github.com/radiomics/pyradiomics) library,
+which in turn implements calculation of a variety of
+[radiomics](http://radiomics.github.io) features.
 
-In order to build this extension, beyond having a version of Slicer available to build
-against, the following are requirements (written for Mac):
+Pending resolution of packaging issues, SlicerRadiomics is not currently 
+distributed as an extension via the 3D Slicer ExtensionManager (we expect to
+have this resolved in the near future). You can however use this extension if
+you build SlicerRadiomics from source.
 
-- The path to the Slicer python executable:
-  [path to Slicer top level build]/python-install/bin/SlicerPython
+# Build instructions
 
-- Install scikit for the Slicer version of python:
-  Download at least version 0.4-2.0. You can get it from https://github.com/scikit-build/scikit-build/archive/9ee9f6f.tar.gz or use the master: https://github.com/scikit-build/scikit-build/archive/master.tar.gz
-  Expand the tar.gz
-  cd into the directory that includes setup.py
-  [path to]/SlicerPython setup.py install
+In order to build this extension, beyond having a version of Slicer built from source.
+You can build Slicer following [the
+instructions](https://www.slicer.org/wiki/Documentation/Nightly/Developers/Build_Instructions).
+Once you have done that, all you need to do are the following steps:
 
-- Install CMake if you didn't already use it to build Slicer
-  pip install cmake
+1. Clone the source code of the repository.
+```
+$ git clone https://github.com/radiomics/SlicerRadiomics.git
+```
 
-- Use cmake to configure and generate make files for SlicerRadiomics, make sure thate Slicer_DIR is set to the Slicer build you installed scikit to.
+2. Create an empty directory for building the extension
+```
+$ mkdir SlicerRadiomics-build
+```
 
-- make. The pyradiomics package will get installed in the Slicer python install directory. You can then add the Slicer Radiomics extension as a Qt scripted module.
+3. Configure the build using cmake (you will have it installed as one of the
+   prerequisites for building 3D Slicer)
+```
+$ cd SlicerRadiomics-build; ccmake ../SlicerRadiomics
+```
+
+4. Build the extension
+```
+$ make
+```
+
+Once the build is completed, you will need to add this path
+`SlicerRadiomics-buil/inner-build/lib/Slicer-4.7/qt-scripted-modules` to the 3D
+Slicer additional modules path (3D Slicer Settings > Modules > Additional module paths).
+
+# Acknowledgments
+
+This project is supporte in part by the National Institutes of Health, National
+Cancer Institute Informatics Technology for Cancer Research (ITCR) program via
+grant U24 CA194354 (PI Hugo Aerts).
