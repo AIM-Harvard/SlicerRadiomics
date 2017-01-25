@@ -17,23 +17,23 @@ You can build Slicer following [the
 instructions](https://www.slicer.org/wiki/Documentation/Nightly/Developers/Build_Instructions).
 Once you have done that, all you need to do are the following steps:
 
-1. Clone the source code of the repository.
+* Clone the source code of the repository.
 ```
 $ git clone https://github.com/radiomics/SlicerRadiomics.git
 ```
 
-2. Create an empty directory for building the extension
+* Create an empty directory for building the extension
 ```
 $ mkdir SlicerRadiomics-build
 ```
 
-3. Configure the build using cmake (you will have it installed as one of the
+* Configure the build using cmake (you will have it installed as one of the
    prerequisites for building 3D Slicer)
 ```
 $ cd SlicerRadiomics-build; ccmake ../SlicerRadiomics
 ```
 
-4. Build the extension
+* Build the extension
 ```
 $ make
 ```
