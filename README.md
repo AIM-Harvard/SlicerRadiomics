@@ -12,7 +12,7 @@ you build SlicerRadiomics from source.
 
 # Build instructions
 
-In order to build this extension, beyond having a version of Slicer built from source.
+In order to build this extension, you need to have a version of Slicer built from source.
 You can build Slicer following [the
 instructions](https://www.slicer.org/wiki/Documentation/Nightly/Developers/Build_Instructions).
 Once you have done that, all you need to do are the following steps:
@@ -38,13 +38,13 @@ $ cd SlicerRadiomics-build; ccmake ../SlicerRadiomics
 $ make
 ```
 
-Once the build is completed, you will need to add this path
-`SlicerRadiomics-buil/inner-build/lib/Slicer-4.7/qt-scripted-modules` to the 3D
+Once the build is completed, you will need to add this path within your extension build tree
+`SlicerRadiomics-build/inner-build/lib/Slicer-4.7/qt-scripted-modules` to the 3D
 Slicer additional modules path (3D Slicer Settings > Modules > Additional module paths).
 
 # Acknowledgments
 
-This project is supporte in part by the National Institutes of Health, National
+This project is supported in part by the National Institutes of Health, National
 Cancer Institute [Informatics Technology for Cancer Research (ITCR)
 program](https://itcr.nci.nih.gov) via
 grant U24 CA194354 (PI Hugo Aerts).
