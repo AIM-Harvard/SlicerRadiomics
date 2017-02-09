@@ -4,7 +4,7 @@ import vtk, qt, ctk, slicer
 from slicer.ScriptedLoadableModule import *
 import logging
 import SimpleITK as sitk
-from radiomics import imageoperations, firstorder, glcm, glrlm, shape, glszm
+from radiomics import featureextractor
 
 #
 # SlicerRadiomics
@@ -92,8 +92,9 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
     self.featuresButtonGroup = qt.QButtonGroup(self.featuresLayout)
     self.featuresButtonGroup.exclusive = False
 
-    # create a checkbox for each feature
-    self.features = ["firstorder", "glcm", "glrlm", "shape", "glszm"]
+    # Get the feature classes dynamically
+    self.features = featureextractor.RadiomicsFeaturesExtractor.getFeatureClasses().keys()
+    # Create a checkbox for each feature
     featureButtons = {}
     for feature in self.features:
       featureButtons[feature] = qt.QCheckBox(feature)
@@ -288,40 +289,27 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
       return False
     return True
 
-  def calculateFeature(self, inputVolume, inputMaskVolume, feature, **kwargs):
+  def calculateFeatures(self, inputVolume, inputMaskVolume, featureClasses, **kwargs):
     """
     Calculate a single feature on the input MRML volume nodes
     """
     volumeName = inputVolume.GetName()
     maskName = inputMaskVolume.GetName()
 
+    extractor = featureextractor.RadiomicsFeaturesExtractor(**kwargs)
+    extractor.disableAllFeatures()
+    for feature in featureClasses:
+      extractor.enableFeatureClassByName(feature)
+
     import sitkUtils
     testImage = sitk.ReadImage( sitkUtils.GetSlicerITKReadWriteAddress(volumeName) )
     # TODO: debug why the maskName works in the test, but not from the GUI, it tries to read the table node
     testMask = sitk.ReadImage( sitkUtils.GetSlicerITKReadWriteAddress( inputMaskVolume.GetID() ) )
 
-    if feature == 'firstorder':
-      featureClass = firstorder.RadiomicsFirstOrder(testImage, testMask, **kwargs)
-    elif feature == 'glcm':
-      featureClass = glcm.RadiomicsGLCM(testImage, testMask, **kwargs)
-    elif feature == 'glrlm':
-      featureClass = glrlm.RadiomicsGLRLM(testImage, testMask, **kwargs)
-    elif feature == 'shape':
-      featureClass = shape.RadiomicsShape(testImage, testMask, **kwargs)
-    elif feature == 'glszm':
-      featureClass = glszm.RadiomicsGLSZM(testImage, testMask, **kwargs)
-    elif feature == 'gldm':
-      featureClass = gldm.RadiomicsGLDM(testImage, testMask, **kwargs)
-    elif feature == 'ngtdm':
-      featureClass = ngtdm.RadiomicsNGTDM(testImage, testMask, **kwargs)
-    elif feature == 'gldzm':
-      featureClass = gldzm.RadiomicsGLDZM(testImage, testMask, **kwargs)
+    self.delayDisplay('Calculating %s for volume %s and mask %s' % (featureClasses, inputVolume.GetName(), inputMaskVolume.GetName()), 200)
 
-    featureClass.enableAllFeatures()
-    self.delayDisplay('Calculating %s for volume %s and mask %s' % (feature, inputVolume.GetName(), inputMaskVolume.GetName()), 200)
-    featureClass.calculateFeatures()
-    # get the result
-    self.featureValues[feature] = featureClass.featureValues
+    # Calculate features
+    self.featureValues = extractor.execute(testImage, testMask)
 
   def exportToTable(self, table):
     """
@@ -330,20 +318,17 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
     tableWasModified = table.StartModify()
     table.RemoveAllColumns()
 
-    featureClasses = self.featureValues.keys()
-
     # Define table columns
     for k in ['Feature Class', 'Feature Name', 'Value']:
       col = table.AddColumn()
       col.SetName(k)
     # Fill columns
-    for featureClass in featureClasses:
-      featureNames = self.featureValues[featureClass].keys()
-      for featureName in featureNames:
-        rowIndex = table.AddEmptyRow()
-        table.SetCellText(rowIndex, 0, featureClass)
-        table.SetCellText(rowIndex, 1, featureName)
-        table.SetCellText(rowIndex, 2, str(self.featureValues[featureClass][featureName]))
+    for featureKey, featureValue in self.featureValues.items():
+      inputImage, featureClass, featureName = str(featureKey).split("_", 3)
+      rowIndex = table.AddEmptyRow()
+      table.SetCellText(rowIndex, 0, featureClass)
+      table.SetCellText(rowIndex, 1, featureName)
+      table.SetCellText(rowIndex, 2, str(featureValue))
 
     table.Modified()
     table.EndModify(tableWasModified)
@@ -366,8 +351,7 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
 
     logging.info('Processing started')
 
-    for feature in featureClasses:
-      self.calculateFeature(inputVolume, inputMaskVolume, feature, **kwargs)
+    self.calculateFeatures(inputVolume, inputMaskVolume, featureClasses, **kwargs)
 
     logging.info('Processing completed, feature values:')
 
