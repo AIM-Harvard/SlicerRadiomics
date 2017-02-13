@@ -4,7 +4,7 @@ import vtk, qt, ctk, slicer
 from slicer.ScriptedLoadableModule import *
 import logging
 import SimpleITK as sitk
-from radiomics import featureextractor
+from radiomics import featureextractor, getFeatureClasses
 
 #
 # SlicerRadiomics
@@ -93,7 +93,7 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
     self.featuresButtonGroup.exclusive = False
 
     # Get the feature classes dynamically
-    self.features = featureextractor.RadiomicsFeaturesExtractor.getFeatureClasses().keys()
+    self.features = getFeatureClasses().keys()
     # Create a checkbox for each feature
     featureButtons = {}
     for feature in self.features:
