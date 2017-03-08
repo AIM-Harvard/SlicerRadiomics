@@ -416,14 +416,13 @@ class SlicerRadiomicsTest(ScriptedLoadableModuleTest):
     self.assertIsNotNone( logic.hasImageData(volumeNode) )
     self.assertIsNotNone( logic.hasImageData(maskNode) )
 
-    features = ['firstorder', 'shape']
+    featureClasses = ['firstorder', 'shape']
     kwargs = {}
     kwargs['binWidth'] = 25
     kwargs['symmetricalGLCM'] = False
     kwargs['verbose'] = False
     kwargs['label'] = 1
-    for feature in features:
-       logic.calculateFeature(volumeNode, maskNode, feature, **kwargs)
+    logic.calculateFeatures(volumeNode, maskNode, featureClasses, **kwargs)
 
     tableNode = slicer.vtkMRMLTableNode()
     tableNode.SetName(maskNode.GetName())
