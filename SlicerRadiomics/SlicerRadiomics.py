@@ -44,10 +44,6 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
   def setup(self):
     ScriptedLoadableModuleWidget.setup(self)
 
-    # Control logging
-    self.debugging = False
-    self.logfile = os.path.expanduser(r'~\PyRadiomicsLog.txt')  # store the log in user root
-
     # Instantiate and connect widgets ...
 
     #
@@ -172,7 +168,8 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
     # debug logging flag, defaults to false
     self.debuggingCheckBox = qt.QCheckBox()
     self.debuggingCheckBox.checked = 0
-    self.debuggingCheckBox.tooltip = 'If checked, a debug log file of the extraction is created in %s' % self.logfile
+    self.debuggingCheckBox.toolTip = \
+      'If checked, PyRadiomics log messages from level DEBUG and higher will be added to the slicer log'
     optionsFormLayout.addRow('Store debug log', self.debuggingCheckBox)
 
     #
@@ -191,7 +188,8 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
     self.outputTableSelector.removeEnabled = True
     self.outputTableSelector.noneEnabled = False
     self.outputTableSelector.setMRMLScene(slicer.mrmlScene)
-    self.outputTableSelector.toolTip = 'Select the table where features will be saved, resets feature values on each run.'
+    self.outputTableSelector.toolTip = \
+      'Select the table where features will be saved, resets feature values on each run.'
     outputFormLayout.addRow('Output table:', self.outputTableSelector)
 
     #
@@ -246,19 +244,24 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
       featureButton.checked = False
 
   def onApplyButton(self):
-    if self.debugging:
+    if self.debuggingCheckBox.checked:
       # Setup debug logging for the pyradiomics toolbox
+      # PyRadiomics logs to stderr by default, which is picked up by slicer and added to the slicer log.
       rlogger = radiomics.logger
       rlogger.setLevel(logging.DEBUG)
-      if len(rlogger.handlers) > 0:
-        rlogger.handlers[0].setLevel(logging.WARNING)  # The default handler for radiomics logging prints to stderr
-      handler = logging.FileHandler(filename=self.logFile, mode='w')
-      handler.setLevel(logging.DEBUG)
-      rlogger.addHandler(handler)
 
       # Get child logger from pyradiomics logger for log messages of this extension
       logger = logging.getLogger(rlogger.name + '.slicer')
       logger.setLevel(logging.DEBUG)
+
+      # Uncomment this section to restrict logging to stderr (level WARNING) and store a separate log (level DEBUG)
+
+      # logfile = os.path.expanduser(r'~\PyRadiomicsLog.txt')  # store the log in user root
+      # if len(rlogger.handlers) > 0:
+      #  rlogger.handlers[0].setLevel(logging.WARNING)  # The default handler for radiomics logging prints to stderr
+      # handler = logging.FileHandler(filename=logfile, mode='w')
+      # handler.setLevel(logging.DEBUG)
+      # rlogger.addHandler(handler)
 
     logic = SlicerRadiomicsLogic()
     featureClasses = self.getCheckedFeatureClasses()
