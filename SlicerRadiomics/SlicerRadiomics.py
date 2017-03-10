@@ -1,8 +1,6 @@
 import os
-import unittest
 import vtk, qt, ctk, slicer, logging
 from slicer.ScriptedLoadableModule import *
-import logging
 import SimpleITK as sitk
 import radiomics
 from radiomics import featureextractor, getFeatureClasses
