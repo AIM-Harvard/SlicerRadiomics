@@ -527,44 +527,54 @@ class SlicerRadiomicsTest(ScriptedLoadableModuleTest):
     self.delayDisplay('Starting the test')
     #
     # first, get some data
-    #
+    #https://github.com/Radiomics/SlicerRadiomics/releases/download/TestData-v1.0.0/lung1_binary.seg.nrrd
     import urllib
-    downloads = (
-      ('http://slicer.kitware.com/midas3/download/item/269197/lung1_image.nrrd', 'lung1_image.nrrd',
-       slicer.util.loadVolume),
-      ('http://slicer.kitware.com/midas3/download/item/269198/lung1_label.nrrd', 'lung1_label.nrrd',
-       slicer.util.loadLabelVolume),
-    )
+    dataRelease = 'v1.0.0'
+    dataURLPrefix = 'https://github.com/Radiomics/SlicerRadiomics/releases/download/TestData'
+    dataItems = (('lung1_image.nrrd', slicer.util.loadVolume),
+                 ('lung1_label.nrrd', slicer.util.loadLabelVolume),
+                 ('lung1_binary.seg.nrrd', slicer.util.loadSegmentation),
+                 ('lung1.seg_0.vtp', None),
+                 ('lung1.seg_1.vtp', None),
+                 ('lung1_surface.seg.vtm', slicer.util.loadSegmentation))
 
-    for url, name, loader in downloads:
-      filePath = slicer.app.temporaryPath + '/' + name
+    for item, loader in dataItems:
+      url = dataURLPrefix+'-'+dataRelease+'/'+item
+      filePath = slicer.app.temporaryPath + '/' + item
       if not os.path.exists(filePath) or os.stat(filePath).st_size == 0:
-        logging.info('Requesting download %s from %s...\n' % (name, url))
-        urllib.urlretrieve(url, filePath)
+        logging.info('Requesting download %s from %s...\n' % (item, url))
+        self.assertTrue(urllib.urlretrieve(url, filePath),'Failed to download from '+url)
       if loader:
-        logging.info('Loading %s...' % (name,))
-        loader(filePath)
+        logging.info('Loading %s from %s...' % (item,filePath))
+        self.assertTrue(loader(filePath),'Failed to load '+item)
+
     self.delayDisplay(
       'Finished with download and loading %d volumes' % (slicer.mrmlScene.GetNumberOfNodesByClass('vtkMRMLVolumeNode')))
 
     grayscaleNode = slicer.util.getNode(pattern='lung1_image')
     labelmapNode = slicer.util.getNode(pattern='lung1_label')
+    binaryNode = slicer.util.getNode(pattern='lung1_binary')
+    surfaceNode = slicer.util.getNode(pattern='lung1_surface')
+
     logic = SlicerRadiomicsLogic()
     self.assertIsNotNone(logic.hasImageData(grayscaleNode))
     self.assertIsNotNone(logic.hasImageData(labelmapNode))
 
-    featureClasses = ['firstorder', 'shape']
+    featureClasses = ['firstorder']
     kwargs = {}
     kwargs['binWidth'] = 25
     kwargs['symmetricalGLCM'] = False
     kwargs['verbose'] = False
     kwargs['label'] = 1
-    featuresDict = logic.run(grayscaleNode, labelmapNode, None, featureClasses, **kwargs)
 
-    tableNode = slicer.vtkMRMLTableNode()
-    tableNode.SetName('lung1 test features')
-    slicer.mrmlScene.AddNode(tableNode)
-    logic.exportToTable(featuresDict, tableNode)
-    logic.showTable(tableNode)
+    for segNode in [binaryNode, surfaceNode]:
+
+      featuresDict = logic.run(grayscaleNode, labelmapNode, segNode, featureClasses, **kwargs)
+
+      tableNode = slicer.vtkMRMLTableNode()
+      tableNode.SetName('lung1_label and '+segNode.GetName())
+      slicer.mrmlScene.AddNode(tableNode)
+      logic.exportToTable(featuresDict, tableNode)
+      logic.showTable(tableNode)
 
     self.delayDisplay('Test passed!')
