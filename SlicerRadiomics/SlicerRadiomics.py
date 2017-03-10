@@ -172,7 +172,7 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
     self.labelSliderWidget.maximum = 255
     self.labelSliderWidget.value = 1
     self.labelSliderWidget.toolTip = 'Set the label to use for masking the image'
-    optionsFormLayout.addRow('Label', self.labelSliderWidget)
+    # optionsFormLayout.addRow('Label', self.labelSliderWidget)
 
     # verbose flag, defaults to false
     self.verboseCheckBox = qt.QCheckBox()
