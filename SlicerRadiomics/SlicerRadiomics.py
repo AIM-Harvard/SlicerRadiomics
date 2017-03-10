@@ -544,11 +544,11 @@ class SlicerRadiomicsTest(ScriptedLoadableModuleTest):
     self.delayDisplay(
       'Finished with download and loading %d volumes' % (slicer.mrmlScene.GetNumberOfNodesByClass('vtkMRMLVolumeNode')))
 
-    volumeNode = slicer.util.getNode(pattern='lung1_image')
-    maskNode = slicer.util.getNode(pattern='lung1_label')
+    grayscaleNode = slicer.util.getNode(pattern='lung1_image')
+    labelmapNode = slicer.util.getNode(pattern='lung1_label')
     logic = SlicerRadiomicsLogic()
-    self.assertIsNotNone(logic.hasImageData(volumeNode))
-    self.assertIsNotNone(logic.hasImageData(maskNode))
+    self.assertIsNotNone(logic.hasImageData(grayscaleNode))
+    self.assertIsNotNone(logic.hasImageData(labelmapNode))
 
     featureClasses = ['firstorder', 'shape']
     kwargs = {}
@@ -556,12 +556,12 @@ class SlicerRadiomicsTest(ScriptedLoadableModuleTest):
     kwargs['symmetricalGLCM'] = False
     kwargs['verbose'] = False
     kwargs['label'] = 1
-    logic.calculateFeatures(volumeNode, maskNode, featureClasses, **kwargs)
+    featuresDict = logic.run(grayscaleNode, labelmapNode, None, featureClasses, **kwargs)
 
     tableNode = slicer.vtkMRMLTableNode()
-    tableNode.SetName(maskNode.GetName())
+    tableNode.SetName('lung1 test features')
     slicer.mrmlScene.AddNode(tableNode)
-    logic.exportToTable(tableNode)
+    logic.exportToTable(featuresDict, tableNode)
     logic.showTable(tableNode)
 
     self.delayDisplay('Test passed!')
