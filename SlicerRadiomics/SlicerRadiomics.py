@@ -220,7 +220,7 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
     self.applyButton.connect('clicked(bool)', self.onApplyButton)
     self.inputVolumeSelector.connect('currentNodeChanged(vtkMRMLNode*)', self.onSelect)
     self.inputMaskSelector.connect('currentNodeChanged(vtkMRMLNode*)', self.onSelect)
-    self.outputTableSelector.connect('currentNodeChanged(vtkMRMLNode*)', self.onSelect)
+    self.inputSegmentationSelector.connect('currentNodeChanged(vtkMRMLNode*)', self.onSelect)
 
     # Add vertical spacer
     self.layout.addStretch(1)
@@ -373,23 +373,28 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
     segLogic = slicer.modules.segmentations.logic()
 
     segmentation = segmentationNode.GetSegmentation()
-    containsLabelmapRepresentation = segmentation.ContainsRepresentation(
+    binaryRepresentationDef = vtkSegmentationCore.vtkSegmentationConverter.GetSegmentationBinaryLabelmapRepresentationName()
+    if not segmentation.ContainsRepresentation(binaryRepresentationDef):
+      segmentation.CreateRepresentation(binaryRepresentationDef)
+
+    segmentLabelmapNode = slicer.vtkMRMLLabelMapVolumeNode()
+    slicer.mrmlScene.AddNode(segmentLabelmapNode)
+
+    for segmentID in range(segmentation.GetNumberOfSegments()):
+      segment = segmentation.GetNthSegment(segmentID)
+      segmentLabelmap = segment.GetRepresentation(
         vtkSegmentationCore.vtkSegmentationConverter.GetSegmentationBinaryLabelmapRepresentationName())
+      if not segLogic.CreateLabelmapVolumeFromOrientedImageData(segmentLabelmap, segmentLabelmapNode):
+        self.logger.error("Failed to convert label map")
+        return labelsDict
+      labelmapImage = sitk.ReadImage(sitkUtils.GetSlicerITKReadWriteAddress(segmentLabelmapNode.GetName()))
+      labelmapImage = self.resampleITKLabel(labelmapImage, grayscaleImage)
+      labelsDict[segmentationNode.GetName()+"_segment_"+segment.GetName()] = labelmapImage
 
-    if containsLabelmapRepresentation:
-      segmentLabelmapNode = slicer.vtkMRMLLabelMapVolumeNode()
-      slicer.mrmlScene.AddNode(segmentLabelmapNode)
-
-      for segmentID in range(segmentation.GetNumberOfSegments()):
-        segment = segmentation.GetNthSegment(segmentID)
-        segmentLabelmap = segment.GetRepresentation(
-          vtkSegmentationCore.vtkSegmentationConverter.GetSegmentationBinaryLabelmapRepresentationName())
-        if not segLogic.CreateLabelmapVolumeFromOrientedImageData(segmentLabelmap, segmentLabelmapNode):
-          logging.error("Failed to convert label map")
-          return labelsDict
-        labelmapImage = sitk.ReadImage(sitkUtils.GetSlicerITKReadWriteAddress(segmentLabelmapNode.GetName()))
-        labelmapImage = self.resampleITKLabel(labelmapImage, grayscaleImage)
-        labelsDict[segmentationNode.GetName()+"_segment_"+segment.GetName()] = labelmapImage
+    displayNode = segmentLabelmapNode.GetDisplayNode()
+    if displayNode:
+      slicer.mrmlScene.RemoveNode(displayNode)
+    slicer.mrmlScene.RemoveNode(segmentLabelmapNode)
 
     return labelsDict
 
