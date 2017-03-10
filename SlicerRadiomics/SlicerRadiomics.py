@@ -19,7 +19,7 @@ class SlicerRadiomics(ScriptedLoadableModule):
 
   def __init__(self, parent):
     ScriptedLoadableModule.__init__(self, parent)
-    self.parent.title = 'SlicerRadiomics'
+    self.parent.title = 'Radiomics'
     self.parent.categories = ['Informatics']
     self.parent.dependencies = []
     self.parent.contributors = ['Nicole Aucion (BWH)']
