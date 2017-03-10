@@ -21,7 +21,6 @@ class SlicerRadiomics(ScriptedLoadableModule):
     self.parent.title = 'SlicerRadiomics'
     self.parent.categories = ['Informatics']
     self.parent.dependencies = []
-    self.parent.contributors = ['Nicole Aucoin (BWH), Andrey Fedorov (BWH)']
     self.parent.contributors = ["Nicole Aucoin (BWH), Joost van Griethuysen (AVL-NKI), Andrey Fedorov (BWH)"]
     self.parent.helpText = """
     This is a scripted loadable module bundled in the SlicerRadomics extension.
