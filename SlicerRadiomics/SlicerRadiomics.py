@@ -293,7 +293,7 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
     kwargs['binWidth'] = int(self.binWidthSliderWidget.value)
     kwargs['symmetricalGLCM'] = self.symmetricalGLCMCheckBox.checked
     kwargs['verbose'] = self.verboseCheckBox.checked
-    kwargs['label'] = int(self.labelSliderWidget.value)
+    # kwargs['label'] = int(self.labelSliderWidget.value)
 
     imageNode = self.inputVolumeSelector.currentNode()
     labelNode = self.inputMaskSelector.currentNode()
