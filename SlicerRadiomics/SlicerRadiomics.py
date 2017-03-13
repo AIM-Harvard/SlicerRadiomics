@@ -1,11 +1,10 @@
 import os
-import unittest
-import vtk, qt, ctk, slicer
+import vtk, qt, ctk, slicer, logging
 from slicer.ScriptedLoadableModule import *
-import logging
 import SimpleITK as sitk
 import radiomics
 from radiomics import featureextractor, getFeatureClasses
+import sitkUtils
 
 
 #
@@ -22,16 +21,15 @@ class SlicerRadiomics(ScriptedLoadableModule):
     self.parent.title = 'Radiomics'
     self.parent.categories = ['Informatics']
     self.parent.dependencies = []
-    self.parent.contributors = ['Nicole Aucion (BWH)']
+    self.parent.contributors = ["Nicole Aucoin (BWH), Joost van Griethuysen (AVL-NKI), Andrey Fedorov (BWH)"]
     self.parent.helpText = """
     This is a scripted loadable module bundled in the SlicerRadomics extension.
-    It gives access to the radiomics feature calculation classes.
+    It gives access to the radiomics feature calculation classes implemented in pyradiomics library.
+    See more details at http://pyradiomics.readthedocs.io/.
     """
     self.parent.acknowledgementText = """
-    This file was originally developed by Nicole Aucoin, BWH, and was  partially funded by  grant .
+    This work was partially supported by NIH/NCI ITCR program grant U24 CA194354.
     """
-
-
 #
 # SlicerRadiomicsWidget
 #
@@ -79,12 +77,27 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
     self.inputMaskSelector.selectNodeUponCreation = True
     self.inputMaskSelector.addEnabled = False
     self.inputMaskSelector.removeEnabled = False
-    self.inputMaskSelector.noneEnabled = False
+    self.inputMaskSelector.noneEnabled = True
     self.inputMaskSelector.showHidden = False
     self.inputMaskSelector.showChildNodeTypes = False
-    self.inputMaskSelector.setMRMLScene(slicer.mrmlScene)
-    self.inputMaskSelector.setToolTip('Pick the input mask for the feature calclation.')
-    parametersFormLayout.addRow('Input Mask Volume: ', self.inputMaskSelector)
+    self.inputMaskSelector.setMRMLScene( slicer.mrmlScene )
+    self.inputMaskSelector.setToolTip( 'Pick the input mask for the feature calculation.')
+    parametersFormLayout.addRow('Input LabelMap: ', self.inputMaskSelector)
+
+    #
+    # input segmentation selector
+    #
+    self.inputSegmentationSelector = slicer.qMRMLNodeComboBox()
+    self.inputSegmentationSelector.nodeTypes = ['vtkMRMLSegmentationNode']
+    self.inputSegmentationSelector.selectNodeUponCreation = True
+    self.inputSegmentationSelector.addEnabled = False
+    self.inputSegmentationSelector.removeEnabled = False
+    self.inputSegmentationSelector.noneEnabled = True
+    self.inputSegmentationSelector.showHidden = False
+    self.inputSegmentationSelector.showChildNodeTypes = False
+    self.inputSegmentationSelector.setMRMLScene( slicer.mrmlScene )
+    self.inputSegmentationSelector.setToolTip('Pick the input segmentation for the feature calculation.')
+    parametersFormLayout.addRow('Input Segmentation: ', self.inputSegmentationSelector)
 
     #
     # Feature class selection
@@ -115,7 +128,7 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
     parametersFormLayout.addRow('Toggle Features:', self.buttonsLayout)
 
     self.calculateAllFeaturesButton = qt.QPushButton('All Features')
-    self.calculateAllFeaturesButton.toolTip = 'Calcualte all feature classes.'
+    self.calculateAllFeaturesButton.toolTip = 'Calculate all feature classes.'
     self.calculateAllFeaturesButton.enabled = True
     self.buttonsLayout.addWidget(self.calculateAllFeaturesButton)
     self.calculateNoFeaturesButton = qt.QPushButton('No Features')
@@ -158,7 +171,7 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
     self.labelSliderWidget.maximum = 255
     self.labelSliderWidget.value = 1
     self.labelSliderWidget.toolTip = 'Set the label to use for masking the image'
-    optionsFormLayout.addRow('Label', self.labelSliderWidget)
+    # optionsFormLayout.addRow('Label', self.labelSliderWidget)
 
     # verbose flag, defaults to false
     self.verboseCheckBox = qt.QCheckBox()
@@ -206,7 +219,7 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
     self.applyButton.connect('clicked(bool)', self.onApplyButton)
     self.inputVolumeSelector.connect('currentNodeChanged(vtkMRMLNode*)', self.onSelect)
     self.inputMaskSelector.connect('currentNodeChanged(vtkMRMLNode*)', self.onSelect)
-    self.outputTableSelector.connect('currentNodeChanged(vtkMRMLNode*)', self.onSelect)
+    self.inputSegmentationSelector.connect('currentNodeChanged(vtkMRMLNode*)', self.onSelect)
 
     # Add vertical spacer
     self.layout.addStretch(1)
@@ -218,10 +231,9 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
     pass
 
   def onSelect(self):
-    self.applyButton.enabled = self.inputVolumeSelector.currentNode() and self.inputMaskSelector.currentNode() and (
-      self.outputTableSelector.currentNode() is not None)
-    if self.outputTableSelector.currentNode():
-      self.outputTableSelector.baseName = self.inputMaskSelector.currentNode().GetName() + ' features'
+    self.applyButton.enabled = self.inputVolumeSelector.currentNode() and \
+                               (self.inputMaskSelector.currentNode() or \
+                                self.inputSegmentationSelector.currentNode())
 
   def getCheckedFeatureClasses(self):
     checkedFeatures = []
@@ -263,6 +275,11 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
       # handler.setLevel(logging.DEBUG)
       # rlogger.addHandler(handler)
 
+    if not self.outputTableSelector.currentNode():
+      tableNode = slicer.vtkMRMLTableNode()
+      slicer.mrmlScene.AddNode(tableNode)
+      self.outputTableSelector.setCurrentNode(tableNode)
+
     logic = SlicerRadiomicsLogic()
     featureClasses = self.getCheckedFeatureClasses()
 
@@ -276,10 +293,17 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
     kwargs['binWidth'] = int(self.binWidthSliderWidget.value)
     kwargs['symmetricalGLCM'] = self.symmetricalGLCMCheckBox.checked
     kwargs['verbose'] = self.verboseCheckBox.checked
-    kwargs['label'] = int(self.labelSliderWidget.value)
+    # kwargs['label'] = int(self.labelSliderWidget.value)
 
-    logic.run(self.inputVolumeSelector.currentNode(), self.inputMaskSelector.currentNode(), featureClasses, **kwargs)
-    logic.exportToTable(self.outputTableSelector.currentNode())
+    imageNode = self.inputVolumeSelector.currentNode()
+    labelNode = self.inputMaskSelector.currentNode()
+    segmentationNode = self.inputSegmentationSelector.currentNode()
+
+    try:
+      featuresDict = logic.run(imageNode, labelNode, segmentationNode, featureClasses, **kwargs)
+      logic.exportToTable(featuresDict, self.outputTableSelector.currentNode())
+    except:
+      logging.error("Feature calculation failed.")
 
     # Unlock GUI
     self.applyButton.setEnabled(True)
@@ -325,38 +349,82 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
       return False
     return True
 
-  def calculateFeatures(self, inputVolume, inputMaskVolume, featureClasses, **kwargs):
+  def prepareLabelsFromLabelmap(self, labelmapNode, grayscaleImage, labelsDict):
+
+    combinedLabelImage = sitk.ReadImage(sitkUtils.GetSlicerITKReadWriteAddress(labelmapNode.GetName()))
+    resampledLabelImage = self.resampleITKLabel(combinedLabelImage, grayscaleImage)
+
+    ls = sitk.LabelStatisticsImageFilter()
+    ls.Execute(resampledLabelImage,resampledLabelImage)
+    th = sitk.BinaryThresholdImageFilter()
+    th.SetInsideValue(1)
+    th.SetOutsideValue(0)
+
+    for l in ls.GetLabels()[1:]:
+      th.SetUpperThreshold(l)
+      th.SetLowerThreshold(l)
+      labelsDict[labelmapNode.GetName()+"_label_"+str(l)] = th.Execute(combinedLabelImage)
+
+    return labelsDict
+
+  def prepareLabelsFromSegmentation(self, segmentationNode, grayscaleImage, labelsDict):
+    import vtkSegmentationCorePython as vtkSegmentationCore
+    segLogic = slicer.modules.segmentations.logic()
+
+    segmentation = segmentationNode.GetSegmentation()
+    binaryRepresentationDef = vtkSegmentationCore.vtkSegmentationConverter.GetSegmentationBinaryLabelmapRepresentationName()
+    if not segmentation.ContainsRepresentation(binaryRepresentationDef):
+      segmentation.CreateRepresentation(binaryRepresentationDef)
+
+    segmentLabelmapNode = slicer.vtkMRMLLabelMapVolumeNode()
+    slicer.mrmlScene.AddNode(segmentLabelmapNode)
+
+    for segmentID in range(segmentation.GetNumberOfSegments()):
+      segment = segmentation.GetNthSegment(segmentID)
+      segmentLabelmap = segment.GetRepresentation(
+        vtkSegmentationCore.vtkSegmentationConverter.GetSegmentationBinaryLabelmapRepresentationName())
+      if not segLogic.CreateLabelmapVolumeFromOrientedImageData(segmentLabelmap, segmentLabelmapNode):
+        self.logger.error("Failed to convert label map")
+        return labelsDict
+      labelmapImage = sitk.ReadImage(sitkUtils.GetSlicerITKReadWriteAddress(segmentLabelmapNode.GetName()))
+      labelmapImage = self.resampleITKLabel(labelmapImage, grayscaleImage)
+      labelsDict[segmentationNode.GetName()+"_segment_"+segment.GetName()] = labelmapImage
+
+    displayNode = segmentLabelmapNode.GetDisplayNode()
+    if displayNode:
+      slicer.mrmlScene.RemoveNode(displayNode)
+    slicer.mrmlScene.RemoveNode(segmentLabelmapNode)
+
+    return labelsDict
+
+  def calculateFeatures(self, grayscaleImage, labelImage, featureClasses, **kwargs):
+    # type: (object, object, object, object) -> object
     """
     Calculate a single feature on the input MRML volume nodes
     """
     self.logger.debug('Calculating features for %s', featureClasses)
 
-    volumeName = inputVolume.GetName()
-    maskName = inputMaskVolume.GetName()
-
     self.logger.debug('Instantiating the extractor')
 
     extractor = featureextractor.RadiomicsFeaturesExtractor(**kwargs)
+
     extractor.disableAllFeatures()
     for feature in featureClasses:
       extractor.enableFeatureClassByName(feature)
 
-    self.logger.debug('Loading image and mask as SimpleITK objects')
-    import sitkUtils
-    testImage = sitk.ReadImage(sitkUtils.GetSlicerITKReadWriteAddress(volumeName))
-    # TODO: debug why the maskName works in the test, but not from the GUI, it tries to read the table node
-    testMask = sitk.ReadImage(sitkUtils.GetSlicerITKReadWriteAddress(inputMaskVolume.GetID()))
+    self.logger.debug('Starting feature calculation')
 
-    self.delayDisplay(
-      'Calculating %s for volume %s and mask %s' % (featureClasses, inputVolume.GetName(), inputMaskVolume.GetName()),
-      200)
+    featureValues = {}
+    try:
+      featureValues = extractor.execute(grayscaleImage, labelImage)
+    except:
+      self.logger.error('pyradiomics feature extractor failed')
 
-    # Calculate features
-    self.logger.debug('Extracting features')
-    self.featureValues = extractor.execute(testImage, testMask)
-    self.logger.debug('Extraction finished')
+    self.logger.debug('Features calculated')
 
-  def exportToTable(self, table):
+    return featureValues
+
+  def exportToTable(self, featuresDict, table):
     """
     Export features to table node
     """
@@ -365,16 +433,19 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
     table.RemoveAllColumns()
 
     # Define table columns
-    for k in ['Feature Class', 'Feature Name', 'Value']:
+    for k in ['Label', 'Input image type', 'Feature Class', 'Feature Name', 'Value']:
       col = table.AddColumn()
       col.SetName(k)
     # Fill columns
-    for featureKey, featureValue in self.featureValues.items():
-      inputImage, featureClass, featureName = str(featureKey).split("_", 3)
-      rowIndex = table.AddEmptyRow()
-      table.SetCellText(rowIndex, 0, featureClass)
-      table.SetCellText(rowIndex, 1, featureName)
-      table.SetCellText(rowIndex, 2, str(featureValue))
+    for label,features in featuresDict.items():
+      for featureKey, featureValue in features.items():
+        processingType, featureClass, featureName = str(featureKey).split("_", 3)
+        rowIndex = table.AddEmptyRow()
+        table.SetCellText(rowIndex, 0, label)
+        table.SetCellText(rowIndex, 1, processingType)
+        table.SetCellText(rowIndex, 2, featureClass)
+        table.SetCellText(rowIndex, 3, featureName)
+        table.SetCellText(rowIndex, 4, str(featureValue))
 
     table.Modified()
     table.EndModify(tableWasModified)
@@ -390,21 +461,37 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
     slicer.app.applicationLogic().GetSelectionNode().SetReferenceActiveTableID(table.GetID())
     slicer.app.applicationLogic().PropagateTableSelection()
 
-  def run(self, inputVolume, inputMaskVolume, featureClasses, **kwargs):
+  def resampleITKLabel(self, image, reference):
+    resampler = sitk.ResampleImageFilter()
+    resampler.SetInterpolator(sitk.sitkNearestNeighbor)
+    resampler.SetReferenceImage(reference)
+    return resampler.Execute(image)
+
+  def run(self, imageNode, labelNode, segmentationNode, featureClasses, **kwargs):
     """
     Run the actual algorithm
     """
 
     self.logger.info('Processing started')
 
-    self.calculateFeatures(inputVolume, inputMaskVolume, featureClasses, **kwargs)
+    grayscaleImage = sitk.ReadImage(sitkUtils.GetSlicerITKReadWriteAddress(imageNode.GetName()))
 
-    self.logger.info('Processing completed, feature values:')
+    #sitkUtils.PushToSlicer(label, labelNode.GetName(), overwrite=True, compositeView=2)
 
-    self.logger.info(self.featureValues)
+    labelsDict = {}
+    if labelNode:
+      labelsDict = self.prepareLabelsFromLabelmap(labelNode, grayscaleImage, labelsDict)
+    if segmentationNode:
+      labelsDict = self.prepareLabelsFromSegmentation(segmentationNode, grayscaleImage, labelsDict)
 
-    return True
+    #self.featureValues = extractor.execute(grayscaleImage, labelImage, image, **kwargs)
 
+    featuresDict = {}
+    for l in labelsDict.keys():
+      self.logger.debug("Calculating features for "+l)
+      featuresDict[l] = self.calculateFeatures(grayscaleImage, labelsDict[l], featureClasses, **kwargs)
+
+    return featuresDict
 
 class SlicerRadiomicsTest(ScriptedLoadableModuleTest):
   """
@@ -439,44 +526,54 @@ class SlicerRadiomicsTest(ScriptedLoadableModuleTest):
     self.delayDisplay('Starting the test')
     #
     # first, get some data
-    #
+    #https://github.com/Radiomics/SlicerRadiomics/releases/download/TestData-v1.0.0/lung1_binary.seg.nrrd
     import urllib
-    downloads = (
-      ('http://slicer.kitware.com/midas3/download/item/269197/lung1_image.nrrd', 'lung1_image.nrrd',
-       slicer.util.loadVolume),
-      ('http://slicer.kitware.com/midas3/download/item/269198/lung1_label.nrrd', 'lung1_label.nrrd',
-       slicer.util.loadLabelVolume),
-    )
+    dataRelease = 'v1.0.0'
+    dataURLPrefix = 'https://github.com/Radiomics/SlicerRadiomics/releases/download/TestData'
+    dataItems = (('lung1_image.nrrd', slicer.util.loadVolume),
+                 ('lung1_label.nrrd', slicer.util.loadLabelVolume),
+                 ('lung1_binary.seg.nrrd', slicer.util.loadSegmentation),
+                 ('lung1.seg_0.vtp', None),
+                 ('lung1.seg_1.vtp', None),
+                 ('lung1_surface.seg.vtm', slicer.util.loadSegmentation))
 
-    for url, name, loader in downloads:
-      filePath = slicer.app.temporaryPath + '/' + name
+    for item, loader in dataItems:
+      url = dataURLPrefix+'-'+dataRelease+'/'+item
+      filePath = slicer.app.temporaryPath + '/' + item
       if not os.path.exists(filePath) or os.stat(filePath).st_size == 0:
-        logging.info('Requesting download %s from %s...\n' % (name, url))
-        urllib.urlretrieve(url, filePath)
+        logging.info('Requesting download %s from %s...\n' % (item, url))
+        self.assertTrue(urllib.urlretrieve(url, filePath),'Failed to download from '+url)
       if loader:
-        logging.info('Loading %s...' % (name,))
-        loader(filePath)
+        logging.info('Loading %s from %s...' % (item,filePath))
+        self.assertTrue(loader(filePath),'Failed to load '+item)
+
     self.delayDisplay(
       'Finished with download and loading %d volumes' % (slicer.mrmlScene.GetNumberOfNodesByClass('vtkMRMLVolumeNode')))
 
-    volumeNode = slicer.util.getNode(pattern='lung1_image')
-    maskNode = slicer.util.getNode(pattern='lung1_label')
-    logic = SlicerRadiomicsLogic()
-    self.assertIsNotNone(logic.hasImageData(volumeNode))
-    self.assertIsNotNone(logic.hasImageData(maskNode))
+    grayscaleNode = slicer.util.getNode(pattern='lung1_image')
+    labelmapNode = slicer.util.getNode(pattern='lung1_label')
+    binaryNode = slicer.util.getNode(pattern='lung1_binary')
+    surfaceNode = slicer.util.getNode(pattern='lung1_surface')
 
-    featureClasses = ['firstorder', 'shape']
+    logic = SlicerRadiomicsLogic()
+    self.assertIsNotNone(logic.hasImageData(grayscaleNode))
+    self.assertIsNotNone(logic.hasImageData(labelmapNode))
+
+    featureClasses = ['firstorder']
     kwargs = {}
     kwargs['binWidth'] = 25
     kwargs['symmetricalGLCM'] = False
     kwargs['verbose'] = False
     kwargs['label'] = 1
-    logic.calculateFeatures(volumeNode, maskNode, featureClasses, **kwargs)
 
-    tableNode = slicer.vtkMRMLTableNode()
-    tableNode.SetName(maskNode.GetName())
-    slicer.mrmlScene.AddNode(tableNode)
-    logic.exportToTable(tableNode)
-    logic.showTable(tableNode)
+    for segNode in [binaryNode, surfaceNode]:
+
+      featuresDict = logic.run(grayscaleNode, labelmapNode, segNode, featureClasses, **kwargs)
+
+      tableNode = slicer.vtkMRMLTableNode()
+      tableNode.SetName('lung1_label and '+segNode.GetName())
+      slicer.mrmlScene.AddNode(tableNode)
+      logic.exportToTable(featuresDict, tableNode)
+      logic.showTable(tableNode)
 
     self.delayDisplay('Test passed!')
