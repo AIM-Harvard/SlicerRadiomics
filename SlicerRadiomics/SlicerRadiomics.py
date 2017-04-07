@@ -274,11 +274,6 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
     slicer.app.processEvents()
 
     # Compute features
-    if self.verboseCheckBox.checked:
-      radiomics.setVerbosity(logging.INFO)
-    else:
-      radiomics.setVerbosity(logging.WARNING)
-
     kwargs = {}
     kwargs['binWidth'] = int(self.binWidthSliderWidget.value)
     kwargs['symmetricalGLCM'] = self.symmetricalGLCMCheckBox.checked
