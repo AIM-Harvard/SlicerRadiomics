@@ -42,6 +42,9 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
   def setup(self):
     ScriptedLoadableModuleWidget.setup(self)
 
+    # Setup a logger for the extension log messages (child logger of pyradiomics)
+    self.logger = logging.getLogger(radiomics.logger.name + '.slicer')
+
     # Instantiate and connect widgets ...
 
     #
@@ -159,7 +162,7 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
 
     # symmetricalGLCM flag, defaults to false
     self.symmetricalGLCMCheckBox = qt.QCheckBox()
-    self.symmetricalGLCMCheckBox.checked = 0
+    self.symmetricalGLCMCheckBox.checked = 1
     self.symmetricalGLCMCheckBox.toolTip = 'Use a symmetrical GLCM matrix'
     optionsFormLayout.addRow('Enforce Symmetrical GLCM', self.symmetricalGLCMCheckBox)
 
@@ -172,11 +175,6 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
     self.labelSliderWidget.value = 1
     self.labelSliderWidget.toolTip = 'Set the label to use for masking the image'
     # optionsFormLayout.addRow('Label', self.labelSliderWidget)
-
-    # verbose flag, defaults to false
-    self.verboseCheckBox = qt.QCheckBox()
-    self.verboseCheckBox.checked = 0
-    optionsFormLayout.addRow('Verbose', self.verboseCheckBox)
 
     # debug logging flag, defaults to false
     self.debuggingCheckBox = qt.QCheckBox()
@@ -232,8 +230,7 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
 
   def onSelect(self):
     self.applyButton.enabled = self.inputVolumeSelector.currentNode() and \
-                               (self.inputMaskSelector.currentNode() or \
-                                self.inputSegmentationSelector.currentNode())
+                               (self.inputMaskSelector.currentNode() or self.inputSegmentationSelector.currentNode())
 
   def getCheckedFeatureClasses(self):
     checkedFeatures = []
@@ -259,21 +256,9 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
     if self.debuggingCheckBox.checked:
       # Setup debug logging for the pyradiomics toolbox
       # PyRadiomics logs to stderr by default, which is picked up by slicer and added to the slicer log.
-      rlogger = radiomics.logger
-      rlogger.setLevel(logging.DEBUG)
-
-      # Get child logger from pyradiomics logger for log messages of this extension
-      logger = logging.getLogger(rlogger.name + '.slicer')
-      logger.setLevel(logging.DEBUG)
-
-      # Uncomment this section to restrict logging to stderr (level WARNING) and store a separate log (level DEBUG)
-
-      # logfile = os.path.expanduser(r'~\PyRadiomicsLog.txt')  # store the log in user root
-      # if len(rlogger.handlers) > 0:
-      #  rlogger.handlers[0].setLevel(logging.WARNING)  # The default handler for radiomics logging prints to stderr
-      # handler = logging.FileHandler(filename=logfile, mode='w')
-      # handler.setLevel(logging.DEBUG)
-      # rlogger.addHandler(handler)
+      radiomics.setVerbosity(logging.DEBUG)
+    else:
+      radiomics.setVerbosity(logging.WARNING)
 
     if not self.outputTableSelector.currentNode():
       tableNode = slicer.vtkMRMLTableNode()
@@ -307,7 +292,7 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
       featuresDict = logic.run(imageNode, labelNode, segmentationNode, featureClasses, **kwargs)
       logic.exportToTable(featuresDict, self.outputTableSelector.currentNode())
     except:
-      logging.error("Feature calculation failed.")
+      self.logger.error("Feature calculation failed.")
 
     # Unlock GUI
     self.applyButton.setEnabled(True)
@@ -545,10 +530,10 @@ class SlicerRadiomicsTest(ScriptedLoadableModuleTest):
       url = dataURLPrefix+'-'+dataRelease+'/'+item
       filePath = slicer.app.temporaryPath + '/' + item
       if not os.path.exists(filePath) or os.stat(filePath).st_size == 0:
-        logging.info('Requesting download %s from %s...\n' % (item, url))
+        self.logger.info('Requesting download %s from %s...\n' % (item, url))
         self.assertTrue(urllib.urlretrieve(url, filePath),'Failed to download from '+url)
       if loader:
-        logging.info('Loading %s from %s...' % (item,filePath))
+        self.logger.info('Loading %s from %s...' % (item,filePath))
         self.assertTrue(loader(filePath),'Failed to load '+item)
 
     self.delayDisplay(
