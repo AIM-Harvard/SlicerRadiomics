@@ -43,7 +43,7 @@ add_subdirectory(SlicerRadiomics)
 
 install(
     DIRECTORY "${python_pyradiomics_DIR}/"
-    DESTINATION ${Slicer_INSTALL_ROOT}
+    DESTINATION ${Slicer_INSTALL_ROOT}${Slicer_BUNDLE_EXTENSIONS_LOCATION}
     COMPONENT RuntimeLibraries
     )
 
