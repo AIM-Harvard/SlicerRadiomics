@@ -1,47 +1,71 @@
-# Project that will add pyradiomics
-set(proj pyradiomics)
+set(proj python-pyradiomics)
 
-#------------------------------------------------------------------------------
-# Put CMake in the path
+# Set dependency list
+set(${proj}_DEPENDENCIES "")
 
-include(ExternalProjectForNonCMakeProject)
+# Include dependent projects if any
+ExternalProject_Include_Dependencies(${proj} PROJECT_VAR proj DEPENDS_VAR ${proj}_DEPENDENCIES)
 
-get_filename_component(CMAKE_COMMAND_DIR "${CMAKE_COMMAND}" DIRECTORY)
-
-# Build the full path to setup.py
-set(SETUPPATH "${CMAKE_BINARY_DIR}/${proj}")
-message(STATUS "External_pyradiomics: path to setup.py = ${SETUPPATH}")
-set(INSTALL_COMMAND ${PYTHON_EXECUTABLE} ${SETUPPATH}/setup.py install)
-
-
-
-if(NOT DEFINED git_protocol)
-  set(git_protocol "git")
+if(${CMAKE_PROJECT_NAME}_USE_SYSTEM_${proj})
+  # XXX - Add a test checking if <proj> is available
 endif()
 
-# ToDo: remove hard coded git protocol this when the repo is public
-set(git_protocol "https")
-# Select the master branch by default
-set (tag master)
-set (repo "${git_protocol}://github.com/Radiomics/${proj}.git")
+if(NOT DEFINED ${CMAKE_PROJECT_NAME}_USE_SYSTEM_${proj})
+  set(${CMAKE_PROJECT_NAME}_USE_SYSTEM_${proj} ${Slicer_USE_SYSTEM_python})
+endif()
 
-# Install pyradiomics
-ExternalProject_Add(python-${proj}
-    GIT_REPOSITORY ${repo}
-    GIT_TAG ${tag}
-    SOURCE_DIR ${CMAKE_BINARY_DIR}/${proj}
-    # Building in source allows the install command to work as you need to be in the
-    # directory with setup.py for it to work correctly
+if(NOT ${CMAKE_PROJECT_NAME}_USE_SYSTEM_${proj})
+
+  if(NOT DEFINED git_protocol)
+    set(git_protocol "git")
+  endif()
+
+  ExternalProject_SetIfNotDefined(
+    ${CMAKE_PROJECT_NAME}_${proj}_GIT_REPOSITORY
+    "${git_protocol}://github.com/Radiomics/pyradiomics"
+    QUIET
+    )
+
+  ExternalProject_SetIfNotDefined(
+    ${CMAKE_PROJECT_NAME}_${proj}_GIT_TAG
+    "origin/master"
+    QUIET
+    )
+
+  set(python_pyradiomics_DIR "${CMAKE_BINARY_DIR}/${proj}-install")
+
+  ExternalProject_Add(${proj}
+    ${${proj}_EP_ARGS}
+    GIT_REPOSITORY "${${CMAKE_PROJECT_NAME}_${proj}_GIT_REPOSITORY}"
+    GIT_TAG "${${CMAKE_PROJECT_NAME}_${proj}_GIT_TAG}"
+    SOURCE_DIR ${proj}
     BUILD_IN_SOURCE 1
     CONFIGURE_COMMAND ""
     BUILD_COMMAND ""
-    INSTALL_COMMAND ${INSTALL_COMMAND}
+    INSTALL_COMMAND ${CMAKE_COMMAND}
+      -E env
+        PYTHONNOUSERSITE=1
+      ${PYTHON_EXECUTABLE} -m pip install . --prefix ${python_pyradiomics_DIR}
+    DEPENDS
+      ${${proj}_DEPENDENCIES}
     )
 
-# pyradiomics gets installed where the SlicerPyhon can find it
-get_filename_component(PYTHON_LIB_DIR "${PYTHON_LIBRARY}" DIRECTORY)
-set(PYTHON_PACKAGES_DIR "${PYTHON_LIB_DIR}/python2.7/site-packages")
-MESSAGE(STATUS "Setting proj dir, python lib dir = ${PYTHON_LIB_DIR}, PYTHON_PACKAGES_DIR = ${PYTHON_PACKAGES_DIR}")
+  mark_as_superbuild(python_pyradiomics_DIR:PATH)
 
-set(${proj}_DIR ${PYTHON_PACKAGES_DIR})
-mark_as_superbuild(${proj}_DIR:PATH)
+  #-----------------------------------------------------------------------------
+  # Launcher setting specific to build tree
+
+  set(${proj}_PYTHONPATH_LAUNCHER_BUILD
+    ${python_pyradiomics_DIR}/${PYTHON_STDLIB_SUBDIR}
+    ${python_pyradiomics_DIR}/${PYTHON_STDLIB_SUBDIR}/lib-dynload
+    ${python_pyradiomics_DIR}/${PYTHON_SITE_PACKAGES_SUBDIR}
+    )
+  mark_as_superbuild(
+    VARS ${proj}_PYTHONPATH_LAUNCHER_BUILD
+    LABELS "PYTHONPATH_LAUNCHER_BUILD"
+    )
+
+else()
+  ExternalProject_Add_Empty(${proj} DEPENDS ${${proj}_DEPENDENCIES})
+endif()
+
