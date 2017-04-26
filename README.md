@@ -5,10 +5,9 @@ encapsulates [pyradiomics](https://github.com/radiomics/pyradiomics) library,
 which in turn implements calculation of a variety of
 [radiomics](http://radiomics.github.io) features.
 
-Pending resolution of packaging issues, SlicerRadiomics is not currently 
-distributed as an extension via the 3D Slicer ExtensionManager (we expect to
-have this resolved in the near future). You can however use this extension if
-you build SlicerRadiomics from source.
+# Install instructions
+
+SlicerRadiomics is currently distributed as an extension via the 3D Slicer ExtensionManager.
 
 # Build instructions
 
@@ -38,9 +37,13 @@ $ cd SlicerRadiomics-build; ccmake ../SlicerRadiomics
 $ make
 ```
 
-Once the build is completed, you will need to add this path within your extension build tree
-`SlicerRadiomics-build/inner-build/lib/Slicer-4.7/qt-scripted-modules` to the 3D
-Slicer additional modules path (3D Slicer Settings > Modules > Additional module paths).
+* Package the extension
+```
+$ cd inner-build
+$ make package
+```
+
+Once completed, you can install the [extension from file](https://www.slicer.org/wiki/Documentation/Nightly/SlicerApplication/ExtensionsManager#Installing_an_extension_without_network_connection).
 
 # Acknowledgments
 
