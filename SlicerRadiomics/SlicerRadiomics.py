@@ -487,6 +487,8 @@ class SlicerRadiomicsTest(ScriptedLoadableModuleTest):
   def setUp(self):
     """ Do whatever is needed to reset the state - typically a scene clear will be enough.
     """
+    self.logger = logging.getLogger(radiomics.logger.name + '.slicer')
+
     slicer.mrmlScene.Clear(0)
 
   def runTest(self):
