@@ -2,8 +2,7 @@ import os
 import vtk, qt, ctk, slicer, logging
 from slicer.ScriptedLoadableModule import *
 import SimpleITK as sitk
-import radiomics
-from radiomics import featureextractor, getFeatureClasses
+from radiomics import featureextractor, getFeatureClasses, setVerbosity
 import sitkUtils
 
 
@@ -43,7 +42,7 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
     ScriptedLoadableModuleWidget.setup(self)
 
     # Setup a logger for the extension log messages (child logger of pyradiomics)
-    self.logger = logging.getLogger(radiomics.logger.name + '.slicer')
+    self.logger = logging.getLogger('radiomics.slicer')
 
     # Instantiate and connect widgets ...
 
@@ -256,9 +255,9 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
     if self.debuggingCheckBox.checked:
       # Setup debug logging for the pyradiomics toolbox
       # PyRadiomics logs to stderr by default, which is picked up by slicer and added to the slicer log.
-      radiomics.setVerbosity(logging.DEBUG)
+      setVerbosity(logging.DEBUG)
     else:
-      radiomics.setVerbosity(logging.WARNING)
+      setVerbosity(logging.WARNING)
 
     if not self.outputTableSelector.currentNode():
       tableNode = slicer.vtkMRMLTableNode()
@@ -487,7 +486,7 @@ class SlicerRadiomicsTest(ScriptedLoadableModuleTest):
   def setUp(self):
     """ Do whatever is needed to reset the state - typically a scene clear will be enough.
     """
-    self.logger = logging.getLogger(radiomics.logger.name + '.slicer')
+    self.logger = logging.getLogger('radiomics.slicer')
 
     slicer.mrmlScene.Clear(0)
 
