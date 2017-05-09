@@ -9,6 +9,8 @@ which in turn implements calculation of a variety of
 
 SlicerRadiomics is currently distributed as an extension via the 3D Slicer ExtensionManager.
 
+Note that due to a known issue #18, the module will fail to load. To fix this issue, you can find the folder called `site-packages` under the location of `SlicerRadiomics` extension installation on your computer to the list of additional directories (Slicer menu "Edit > Application settings > Modules", and restart the application after that.
+
 # Build instructions
 
 In order to build this extension, you need to have a version of Slicer built from source.
