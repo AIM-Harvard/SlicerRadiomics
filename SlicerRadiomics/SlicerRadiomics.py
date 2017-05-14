@@ -21,7 +21,7 @@ class SlicerRadiomics(ScriptedLoadableModule):
     self.parent.title = 'Radiomics'
     self.parent.categories = ['Informatics']
     self.parent.dependencies = []
-    self.parent.contributors = ["Nicole Aucoin (BWH), Joost van Griethuysen (AVL-NKI), Andrey Fedorov (BWH)"]
+    self.parent.contributors = ["Andrey Fedorov (BWH), Nicole Aucoin (BWH), Jean-Christophe Fillion-Robin (Kitware), Joost van Griethuysen (AVL-NKI), Hugo Aerts (DFCI)"]
     self.parent.helpText = """
     This is a scripted loadable module bundled in the SlicerRadomics extension.
     It gives access to the radiomics feature calculation classes implemented in pyradiomics library.
