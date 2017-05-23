@@ -6,7 +6,7 @@ project(SlicerRadiomics)
 # Extension meta-information
 set(EXTENSION_HOMEPAGE "http://slicer.org/slicerWiki/index.php/Documentation/Nightly/Extensions/SlicerRadiomics")
 set(EXTENSION_CATEGORY "Informatics")
-set(EXTENSION_CONTRIBUTORS "Andrey Fedorov (BWH), Nicole Aucoin (BWH), Jean-Christophe Fillion-Robin (Kitware), Joost van Griethuysen (AVL-NKI), Hugo Aerts (DFCI))
+set(EXTENSION_CONTRIBUTORS "Andrey Fedorov (BWH), Nicole Aucoin (BWH), Jean-Christophe Fillion-Robin (Kitware), Joost van Griethuysen (AVL-NKI), Hugo Aerts (DFCI)")
 set(EXTENSION_DESCRIPTION "This is an extension using SuperBuild to build a separate library, pyradiomics, and a dependent scripted Module, SlicerRadiomics ")
 set(EXTENSION_ICONURL "http://www.slicer.org/w/images/6/6b/RadiomicsExtension.png")
 set(EXTENSION_SCREENSHOTURLS "http://www.slicer.org/w/images/3/3b/SlicerRadiomics-lung.png")
