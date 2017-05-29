@@ -2,12 +2,18 @@ set(proj python-pyradiomics)
 
 # Set dependency list
 set(${proj}_DEPENDENCIES "")
+if(WIN32)
+  set(${proj}_DEPENDENCIES "python-pyyaml")
+endif()
 
 # Include dependent projects if any
 ExternalProject_Include_Dependencies(${proj} PROJECT_VAR proj DEPENDS_VAR ${proj}_DEPENDENCIES)
 
 if(${CMAKE_PROJECT_NAME}_USE_SYSTEM_${proj})
-  # XXX - Add a test checking if <proj> is available
+  ExternalProject_FindPythonPackage(
+    MODULE_NAME "pyradiomics"
+    REQUIRED
+    )
 endif()
 
 if(NOT DEFINED ${CMAKE_PROJECT_NAME}_USE_SYSTEM_${proj})
@@ -28,11 +34,24 @@ if(NOT ${CMAKE_PROJECT_NAME}_USE_SYSTEM_${proj})
 
   ExternalProject_SetIfNotDefined(
     ${CMAKE_PROJECT_NAME}_${proj}_GIT_TAG
-    "origin/master"
+    "f8f65dfe4649cc3dd9dc6577bb662f798b3c82fa"
     QUIET
     )
 
+  set(wrapper_script)
+  if(MSVC)
+    find_package(Vcvars REQUIRED)
+    set(wrapper_script ${Vcvars_WRAPPER_BATCH_FILE})
+  endif()
+
   set(python_pyradiomics_DIR "${CMAKE_BINARY_DIR}/${proj}-install")
+
+  file(TO_NATIVE_PATH ${python_pyradiomics_DIR} python_pyradiomics_NATIVE_DIR)
+
+  set(_no_binary "")
+  if(WIN32)
+    set(_no_binary -vv --no-binary ":all:")
+  endif()
 
   ExternalProject_Add(${proj}
     ${${proj}_EP_ARGS}
@@ -45,10 +64,12 @@ if(NOT ${CMAKE_PROJECT_NAME}_USE_SYSTEM_${proj})
     INSTALL_COMMAND ${CMAKE_COMMAND}
       -E env
         PYTHONNOUSERSITE=1
-      ${PYTHON_EXECUTABLE} -m pip install . --prefix ${python_pyradiomics_DIR}
+      ${wrapper_script} ${PYTHON_EXECUTABLE} -m pip install . ${_no_binary} --prefix ${python_pyradiomics_NATIVE_DIR}
     DEPENDS
       ${${proj}_DEPENDENCIES}
     )
+
+  ExternalProject_GenerateProjectDescription_Step(${proj})
 
   mark_as_superbuild(python_pyradiomics_DIR:PATH)
 
@@ -68,4 +89,3 @@ if(NOT ${CMAKE_PROJECT_NAME}_USE_SYSTEM_${proj})
 else()
   ExternalProject_Add_Empty(${proj} DEPENDS ${${proj}_DEPENDENCIES})
 endif()
-
