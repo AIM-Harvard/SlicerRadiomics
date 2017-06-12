@@ -8,10 +8,20 @@ which in turn implements calculation of a variety of
 # Install instructions
 
 SlicerRadiomics is currently distributed as an extension via the 3D Slicer ExtensionManager.
+Follow these steps to install the extension:
+1. Download the latest **nightly** release for your platform from http://download.slicer.org.
+**Do NOT use installers tagged as "Stable Release"!**
+If you use Mac, make sure you move the Slicer application to the Applications folder on your computer before launching it!
+2. Once installed, open Extension Manager by clicking the icon as shown below.
+![](https://qiicr.gitbooks.io/quantitativereporting-guide/content/docs/screenshots/extension_manager.png)
+3. Search for `Radiomics` and install the extension by clicking the INSTALL
+   button.
+4. Once installation of `Radiomics` and dependencies is completed,
+   you will need to restart Slicer application to access the module.
+   If installation was successful, you should be able to see
+   `Radiomics` module in the Slicer module list.
 
-Note that due to a known issue #18, the module will fail to load. To fix this issue, you can find the folder called `site-packages` under the location of `SlicerRadiomics` extension installation on your computer to the list of additional directories (Slicer menu "Edit > Application settings > Modules", and restart the application after that.
-
-# Build instructions
+# Building `SlicerRadiomics` from source
 
 In order to build this extension, you need to have a version of Slicer built from source.
 You can build Slicer following [the
@@ -46,6 +56,14 @@ $ make package
 ```
 
 Once completed, you can install the [extension from file](https://www.slicer.org/wiki/Documentation/Nightly/SlicerApplication/ExtensionsManager#Installing_an_extension_without_network_connection).
+
+# Support
+
+If you found a bug, or to report a reproducible problem, [submit an
+issue](https://github.com/Radiomics/SlicerRadiomics/issues/new).
+
+If you have a question about using the extension, please ask on the [mailing
+list](https://groups.google.com/forum/#!forum/pyradiomics).
 
 # Acknowledgments
 
