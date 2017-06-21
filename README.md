@@ -20,6 +20,26 @@ If you use Mac, make sure you move the Slicer application to the Applications fo
    you will need to restart Slicer application to access the module.
    If installation was successful, you should be able to see
    `Radiomics` module in the Slicer module list.
+   
+# Known issues
+
+At the moment, the extension is not available on Linux, due to a known issue (https://github.com/Radiomics/SlicerRadiomics/issues/16).
+
+The extension will also not work on Windows, due to a known issue (https://github.com/Radiomics/SlicerRadiomics/issues/23). However, you can use the following workaround to fix the problem manually, while we are working on a proper resolution.
+
+You will need to change the following file (replacing `USER_NAME` with your user name on your system):
+
+`C:/Users/USER_NAME/AppData/Roaming/NA-MIC/Extensions-revision/SlicerRadiomics/lib/site-packages/radiomics/featureextractor.py`
+
+Where revision is something like 26083 depending on the nightly version of Slicer.
+
+Line 9 should be changed from:
+
+`import pykwalify.core`
+
+to:
+
+`# import pykwalify.core`
 
 # Building `SlicerRadiomics` from source
 
