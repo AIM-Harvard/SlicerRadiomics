@@ -34,7 +34,7 @@ if(NOT ${CMAKE_PROJECT_NAME}_USE_SYSTEM_${proj})
 
   ExternalProject_SetIfNotDefined(
     ${CMAKE_PROJECT_NAME}_${proj}_GIT_TAG
-    "f8f65dfe4649cc3dd9dc6577bb662f798b3c82fa"
+    "origin/slicer"
     QUIET
     )
 
