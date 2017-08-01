@@ -175,6 +175,31 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
     self.labelSliderWidget.toolTip = 'Set the label to use for masking the image'
     # optionsFormLayout.addRow('Label', self.labelSliderWidget)
 
+    filteringCollapsibleButton = ctk.ctkCollapsibleButton()
+    filteringCollapsibleButton.text = 'Filtering'
+    filteringCollapsibleButton.collapsed = True
+    optionsFormLayout.addRow(filteringCollapsibleButton)
+
+    # LoG kernel sizes. default to 5 (?)
+    self.logKernelSizes = qt.QLineEdit()
+    self.binWidthSliderWidget.toolTip = 'Laplacian of Gaussian filter kernel sizes, separated by comma. If empty, no LoG filtering will be applied.'
+    # Layout within the dummy collapsible button
+    filteringFormLayout = qt.QFormLayout(filteringCollapsibleButton)
+    filteringFormLayout.addRow('LoG kernel sizes', self.logKernelSizes)
+
+    # Resampling
+    self.resampledVoxelSize = qt.QLineEdit()
+    self.resampledVoxelSize.toolTip = 'Three floating-point numbers separated by comma defining the resampled pixel size.'
+    # Layout within the dummy collapsible button
+    filteringFormLayout.addRow('Resampled voxel size', self.resampledVoxelSize)
+
+    # Wavelet
+    self.waveletCheckBox = qt.QCheckBox()
+    self.waveletCheckBox.checked = 0
+    self.waveletCheckBox.toolTip = \
+      'If checked, PyRadiomics will calculate features on the image after applying wavelet transformation'
+    optionsFormLayout.addRow('Wavelet-based features', self.waveletCheckBox)
+
     # debug logging flag, defaults to false
     self.debuggingCheckBox = qt.QCheckBox()
     self.debuggingCheckBox.checked = 0
@@ -273,10 +298,29 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
     slicer.app.processEvents()
 
     # Compute features
-    kwargs = {}
+    # Always compute features on the original image
+    kwargs = {'inputImage': { "Original": {} }}
     kwargs['binWidth'] = int(self.binWidthSliderWidget.value)
     kwargs['symmetricalGLCM'] = self.symmetricalGLCMCheckBox.checked
-    # kwargs['label'] = int(self.labelSliderWidget.value)
+
+    logKernelSizesValue = self.logKernelSizes.text
+    if logKernelSizesValue:
+      try:
+        kwargs['inputImage']['LoG'] = {'sigma': [float(i) for i in logKernelSizesValue.split(',')]}
+      except:
+        self.logger.error('Failed to parse LoG sigma value from string \"'+logKernelSizesValue+'\"')
+        return
+
+    resampledVoxelSizeValue = self.resampledVoxelSize.text
+    if resampledVoxelSizeValue:
+      try:
+        kwargs['resampledPixelSpacing'] = [float(i) for i in resampledVoxelSizeValue.split(',')]
+      except:
+        self.logger.error('Failed to parse resampled voxel spacing from string \"'+resampledVoxelSizeValue+'\"')
+        return
+
+    if self.waveletCheckBox.checked:
+      kwargs['inputImage']['Wavelet'] = {}
 
     imageNode = self.inputVolumeSelector.currentNode()
     labelNode = self.inputMaskSelector.currentNode()
@@ -472,7 +516,10 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
     featuresDict = {}
     for l in labelsDict.keys():
       self.logger.debug("Calculating features for "+l)
-      featuresDict[l] = self.calculateFeatures(grayscaleImage, labelsDict[l], featureClasses, **kwargs)
+      try:
+        featuresDict[l] = self.calculateFeatures(grayscaleImage, labelsDict[l], featureClasses, **kwargs)
+      except:
+        self.logger.error('calculateFeatures() failed')
 
     return featuresDict
 
@@ -550,6 +597,7 @@ class SlicerRadiomicsTest(ScriptedLoadableModuleTest):
     kwargs['symmetricalGLCM'] = False
     kwargs['verbose'] = False
     kwargs['label'] = 1
+    #kwargs['inputImage'] = {"Original": {}}
 
     for segNode in [binaryNode, surfaceNode]:
 
