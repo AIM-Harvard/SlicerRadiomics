@@ -4,6 +4,7 @@ from slicer.ScriptedLoadableModule import *
 import SimpleITK as sitk
 from radiomics import featureextractor, getFeatureClasses, setVerbosity
 import sitkUtils
+import traceback
 
 
 #
@@ -309,6 +310,7 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
         kwargs['inputImage']['LoG'] = {'sigma': [float(i) for i in logKernelSizesValue.split(',')]}
       except:
         self.logger.error('Failed to parse LoG sigma value from string \"'+logKernelSizesValue+'\"')
+        traceback.print_exc()
         return
 
     resampledVoxelSizeValue = self.resampledVoxelSize.text
@@ -317,6 +319,7 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
         kwargs['resampledPixelSpacing'] = [float(i) for i in resampledVoxelSizeValue.split(',')]
       except:
         self.logger.error('Failed to parse resampled voxel spacing from string \"'+resampledVoxelSizeValue+'\"')
+        traceback.print_exc()
         return
 
     if self.waveletCheckBox.checked:
@@ -331,6 +334,7 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
       logic.exportToTable(featuresDict, self.outputTableSelector.currentNode())
     except:
       self.logger.error("Feature calculation failed.")
+      traceback.print_exc()
 
     # Unlock GUI
     self.applyButton.setEnabled(True)
@@ -446,6 +450,7 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
       featureValues = extractor.execute(grayscaleImage, labelImage)
     except:
       self.logger.error('pyradiomics feature extractor failed')
+      traceback.print_exc()
 
     self.logger.debug('Features calculated')
 
@@ -520,6 +525,7 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
         featuresDict[l] = self.calculateFeatures(grayscaleImage, labelsDict[l], featureClasses, **kwargs)
       except:
         self.logger.error('calculateFeatures() failed')
+        traceback.print_exc()
 
     return featuresDict
 
