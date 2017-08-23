@@ -183,14 +183,14 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
 
     # LoG kernel sizes. default to 5 (?)
     self.logKernelSizes = qt.QLineEdit()
-    self.binWidthSliderWidget.toolTip = 'Laplacian of Gaussian filter kernel sizes, separated by comma. If empty, no LoG filtering will be applied.'
+    self.binWidthSliderWidget.toolTip = 'Laplacian of Gaussian filter kernel sizes (mm), separated by comma. If empty, no LoG filtering will be applied.'
     # Layout within the dummy collapsible button
     filteringFormLayout = qt.QFormLayout(filteringCollapsibleButton)
     filteringFormLayout.addRow('LoG kernel sizes', self.logKernelSizes)
 
     # Resampling
     self.resampledVoxelSize = qt.QLineEdit()
-    self.resampledVoxelSize.toolTip = 'Three floating-point numbers separated by comma defining the resampled pixel size.'
+    self.resampledVoxelSize.toolTip = 'Three floating-point numbers separated by comma defining the resampled pixel size (mm).'
     # Layout within the dummy collapsible button
     filteringFormLayout.addRow('Resampled voxel size', self.resampledVoxelSize)
 
@@ -445,9 +445,9 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
     for feature in featureClasses:
       extractor.enableFeatureClassByName(feature)
 
-    extractor.disableAllInputImages()
+    extractor.disableAllImagesTypes()
     for imageType in enabledImageTypes:
-      extractor.enableInputImageByName(imageType, customArgs=enabledImageTypes[imageType])
+      extractor.enableImageTypeByName(imageType, customArgs=enabledImageTypes[imageType])
 
     self.logger.debug('Starting feature calculation')
 
@@ -471,7 +471,7 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
     table.RemoveAllColumns()
 
     # Define table columns
-    for k in ['Label', 'Input image type', 'Feature Class', 'Feature Name', 'Value']:
+    for k in ['Label', 'Image type', 'Feature Class', 'Feature Name', 'Value']:
       col = table.AddColumn()
       col.SetName(k)
     # Fill columns
@@ -611,7 +611,6 @@ class SlicerRadiomicsTest(ScriptedLoadableModuleTest):
     settings = {}
     settings['binWidth'] = 25
     settings['symmetricalGLCM'] = False
-    settings['verbose'] = False
     settings['label'] = 1
 
     enabledImageTypes = {"Original": {}}
