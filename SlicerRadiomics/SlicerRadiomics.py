@@ -183,14 +183,14 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
 
     # LoG kernel sizes. default to 5 (?)
     self.logKernelSizes = qt.QLineEdit()
-    self.binWidthSliderWidget.toolTip = 'Laplacian of Gaussian filter kernel sizes, separated by comma. If empty, no LoG filtering will be applied.'
+    self.binWidthSliderWidget.toolTip = 'Laplacian of Gaussian filter kernel sizes (mm), separated by comma. If empty, no LoG filtering will be applied.'
     # Layout within the dummy collapsible button
     filteringFormLayout = qt.QFormLayout(filteringCollapsibleButton)
     filteringFormLayout.addRow('LoG kernel sizes', self.logKernelSizes)
 
     # Resampling
     self.resampledVoxelSize = qt.QLineEdit()
-    self.resampledVoxelSize.toolTip = 'Three floating-point numbers separated by comma defining the resampled pixel size.'
+    self.resampledVoxelSize.toolTip = 'Three floating-point numbers separated by comma defining the resampled pixel size (mm).'
     # Layout within the dummy collapsible button
     filteringFormLayout.addRow('Resampled voxel size', self.resampledVoxelSize)
 
@@ -299,15 +299,16 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
     slicer.app.processEvents()
 
     # Compute features
-    # Always compute features on the original image
-    kwargs = {'inputImage': { "Original": {} }}
-    kwargs['binWidth'] = int(self.binWidthSliderWidget.value)
-    kwargs['symmetricalGLCM'] = self.symmetricalGLCMCheckBox.checked
+    settings = {}
+    settings['binWidth'] = int(self.binWidthSliderWidget.value)
+    settings['symmetricalGLCM'] = self.symmetricalGLCMCheckBox.checked
+
+    enabledImageTypes = {'Original': {}}
 
     logKernelSizesValue = self.logKernelSizes.text
     if logKernelSizesValue:
       try:
-        kwargs['inputImage']['LoG'] = {'sigma': [float(i) for i in logKernelSizesValue.split(',')]}
+        enabledImageTypes['LoG'] = {'sigma': [float(i) for i in logKernelSizesValue.split(',')]}
       except:
         self.logger.error('Failed to parse LoG sigma value from string \"'+logKernelSizesValue+'\"')
         traceback.print_exc()
@@ -316,21 +317,22 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
     resampledVoxelSizeValue = self.resampledVoxelSize.text
     if resampledVoxelSizeValue:
       try:
-        kwargs['resampledPixelSpacing'] = [float(i) for i in resampledVoxelSizeValue.split(',')]
+        settings['resampledPixelSpacing'] = [float(i) for i in resampledVoxelSizeValue.split(',')]
       except:
         self.logger.error('Failed to parse resampled voxel spacing from string \"'+resampledVoxelSizeValue+'\"')
+        settings['resampledPixelSpacing'] = None
         traceback.print_exc()
         return
 
     if self.waveletCheckBox.checked:
-      kwargs['inputImage']['Wavelet'] = {}
+      enabledImageTypes['Wavelet'] = {}
 
     imageNode = self.inputVolumeSelector.currentNode()
     labelNode = self.inputMaskSelector.currentNode()
     segmentationNode = self.inputSegmentationSelector.currentNode()
 
     try:
-      featuresDict = logic.run(imageNode, labelNode, segmentationNode, featureClasses, **kwargs)
+      featuresDict = logic.run(imageNode, labelNode, segmentationNode, featureClasses, settings, enabledImageTypes)
       logic.exportToTable(featuresDict, self.outputTableSelector.currentNode())
     except:
       self.logger.error("Feature calculation failed.")
@@ -428,8 +430,8 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
 
     return labelsDict
 
-  def calculateFeatures(self, grayscaleImage, labelImage, featureClasses, **kwargs):
-    # type: (object, object, object, object) -> object
+  def calculateFeatures(self, grayscaleImage, labelImage, featureClasses, settings, enabledImageTypes):
+    # type: (Simple ITK image object, Simple ITK image object, list, dict, dict) -> dict
     """
     Calculate a single feature on the input MRML volume nodes
     """
@@ -437,11 +439,15 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
 
     self.logger.debug('Instantiating the extractor')
 
-    extractor = featureextractor.RadiomicsFeaturesExtractor(**kwargs)
+    extractor = featureextractor.RadiomicsFeaturesExtractor(**settings)
 
     extractor.disableAllFeatures()
     for feature in featureClasses:
       extractor.enableFeatureClassByName(feature)
+
+    extractor.disableAllImagesTypes()
+    for imageType in enabledImageTypes:
+      extractor.enableImageTypeByName(imageType, customArgs=enabledImageTypes[imageType])
 
     self.logger.debug('Starting feature calculation')
 
@@ -465,7 +471,7 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
     table.RemoveAllColumns()
 
     # Define table columns
-    for k in ['Label', 'Input image type', 'Feature Class', 'Feature Name', 'Value']:
+    for k in ['Label', 'Image type', 'Feature Class', 'Feature Name', 'Value']:
       col = table.AddColumn()
       col.SetName(k)
     # Fill columns
@@ -499,7 +505,7 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
     resampler.SetReferenceImage(reference)
     return resampler.Execute(image)
 
-  def run(self, imageNode, labelNode, segmentationNode, featureClasses, **kwargs):
+  def run(self, imageNode, labelNode, segmentationNode, featureClasses, settings, enabledImageTypes):
     """
     Run the actual algorithm
     """
@@ -522,7 +528,11 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
     for l in labelsDict.keys():
       self.logger.debug("Calculating features for "+l)
       try:
-        featuresDict[l] = self.calculateFeatures(grayscaleImage, labelsDict[l], featureClasses, **kwargs)
+        featuresDict[l] = self.calculateFeatures(grayscaleImage,
+                                                 labelsDict[l],
+                                                 featureClasses,
+                                                 settings,
+                                                 enabledImageTypes)
       except:
         self.logger.error('calculateFeatures() failed')
         traceback.print_exc()
@@ -598,16 +608,16 @@ class SlicerRadiomicsTest(ScriptedLoadableModuleTest):
     self.assertIsNotNone(logic.hasImageData(labelmapNode))
 
     featureClasses = ['firstorder']
-    kwargs = {}
-    kwargs['binWidth'] = 25
-    kwargs['symmetricalGLCM'] = False
-    kwargs['verbose'] = False
-    kwargs['label'] = 1
-    #kwargs['inputImage'] = {"Original": {}}
+    settings = {}
+    settings['binWidth'] = 25
+    settings['symmetricalGLCM'] = False
+    settings['label'] = 1
+
+    enabledImageTypes = {"Original": {}}
 
     for segNode in [binaryNode, surfaceNode]:
 
-      featuresDict = logic.run(grayscaleNode, labelmapNode, segNode, featureClasses, **kwargs)
+      featuresDict = logic.run(grayscaleNode, labelmapNode, segNode, featureClasses, settings, enabledImageTypes)
 
       tableNode = slicer.vtkMRMLTableNode()
       tableNode.SetName('lung1_label and '+segNode.GetName())
