@@ -445,7 +445,7 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
     for feature in featureClasses:
       extractor.enableFeatureClassByName(feature)
 
-    extractor.disableAllImagesTypes()
+    extractor.disableAllImageTypes()
     for imageType in enabledImageTypes:
       extractor.enableImageTypeByName(imageType, customArgs=enabledImageTypes[imageType])
 
