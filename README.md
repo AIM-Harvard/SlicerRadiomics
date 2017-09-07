@@ -53,29 +53,54 @@ Once you have done that, all you need to do are the following steps:
 $ git clone https://github.com/radiomics/SlicerRadiomics.git
 ```
 
-* Create an empty directory for building the extension
+* Create an empty directory for building the extension.
 ```
 $ mkdir SlicerRadiomics-build
 ```
 
-* Configure the build using cmake (you will have it installed as one of the
-   prerequisites for building 3D Slicer)
+* Configure the build using cmake.
 ```
-$ cd SlicerRadiomics-build; ccmake ../SlicerRadiomics
+$ cd SlicerRadiomics-build
+$ cmake -DSlicer_DIR:PATH=/path/to/Slicer-Release/Slicer-build ../SlicerRadiomics
 ```
 
-* Build the extension
+* Build the extension.
 ```
 $ make
 ```
 
-* Package the extension
+*Note: cmake is one of the prerequisites for building 3D Slicer*
+
+# Loading `SlicerRadiomics` from a build tree
+
+There are two options:
+
+## Start Slicer specifying command-line options
+
+* Specify additonal launcher setting and module path.
+
+```
+cd SlicerRadiomics-build/inner-build/
+build_dir=$pwd
+
+./Slicer \
+  --launcher-additional-settings $build_dir/AdditionalLauncherSettings.ini \
+  --additional-module-path $build_dir
+```
+
+* Open `SlicerRadiomics` module.
+
+## Package, install and restart Slicer
+
+* Package the extension.
 ```
 $ cd inner-build
 $ make package
 ```
 
-Once completed, you can install the [extension from file](https://www.slicer.org/wiki/Documentation/Nightly/SlicerApplication/ExtensionsManager#Installing_an_extension_without_network_connection).
+* Once completed, you can install the [extension from file](https://www.slicer.org/wiki/Documentation/Nightly/SlicerApplication/ExtensionsManager#Installing_an_extension_without_network_connection).
+
+* Restart Slicer and open `SlicerRadiomics` module.
 
 # Support
 
