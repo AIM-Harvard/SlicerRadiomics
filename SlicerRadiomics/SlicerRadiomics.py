@@ -153,8 +153,8 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
     # bin width, defaults to 25
     self.binWidthSliderWidget = ctk.ctkSliderWidget()
     self.binWidthSliderWidget.singleStep = 1
-    self.binWidthSliderWidget.decimals = 0
-    self.binWidthSliderWidget.minimum = 1
+    self.binWidthSliderWidget.decimals = 2
+    self.binWidthSliderWidget.minimum = 0.01
     self.binWidthSliderWidget.maximum = 100
     self.binWidthSliderWidget.value = 25
     self.binWidthSliderWidget.toolTip = 'Set the bin width'
