@@ -300,7 +300,7 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
 
     # Compute features
     settings = {}
-    settings['binWidth'] = int(self.binWidthSliderWidget.value)
+    settings['binWidth'] = self.binWidthSliderWidget.value
     settings['symmetricalGLCM'] = self.symmetricalGLCMCheckBox.checked
 
     enabledImageTypes = {'Original': {}}
