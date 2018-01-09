@@ -21,7 +21,8 @@ class SlicerRadiomics(ScriptedLoadableModule):
     self.parent.title = 'Radiomics'
     self.parent.categories = ['Informatics']
     self.parent.dependencies = []
-    self.parent.contributors = ["Andrey Fedorov (BWH), Nicole Aucoin (BWH), Jean-Christophe Fillion-Robin (Kitware), Joost van Griethuysen (AVL-NKI), Hugo Aerts (DFCI)"]
+    self.parent.contributors = ["Andrey Fedorov (BWH), Nicole Aucoin (BWH), Jean-Christophe Fillion-Robin (Kitware), "
+                                "Joost van Griethuysen (AVL-NKI), Hugo Aerts (DFCI)"]
     self.parent.helpText = """
     This is a scripted loadable module bundled in the SlicerRadomics extension.
     It gives access to the radiomics feature calculation classes implemented in pyradiomics library.
@@ -30,6 +31,8 @@ class SlicerRadiomics(ScriptedLoadableModule):
     self.parent.acknowledgementText = """
     This work was partially supported by NIH/NCI ITCR program grant U24 CA194354.
     """
+
+
 #
 # SlicerRadiomicsWidget
 #
@@ -48,14 +51,61 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
     # Instantiate and connect widgets ...
 
     #
-    # Parameters Area
+    # Volume and segmentation input
     #
-    parametersCollapsibleButton = ctk.ctkCollapsibleButton()
-    parametersCollapsibleButton.text = 'Parameters'
-    self.layout.addWidget(parametersCollapsibleButton)
+    self._addInputVolumeSection()
+
+    #
+    # Extraction Customization Area
+    #
+    self._addCustomizationSection()
+
+    #
+    # Output section
+    #
+    self._addOutputSection()
+
+    #
+    # Apply Button
+    #
+    self.applyButton = qt.QPushButton('Apply')
+    self.applyButton.toolTip = 'Run the algorithm.'
+    self.applyButton.enabled = False
+    self.layout.addWidget(self.applyButton)
+
+    #
+    # Connections
+    #
+
+    # Input Section
+    self.inputVolumeSelector.connect('currentNodeChanged(vtkMRMLNode*)', self.onSelect)
+    self.inputMaskSelector.connect('currentNodeChanged(vtkMRMLNode*)', self.onSelect)
+    self.inputSegmentationSelector.connect('currentNodeChanged(vtkMRMLNode*)', self.onSelect)
+
+    # Customization Section
+    self.manualCustomizationRadioButton.connect('toggled(bool)', self.onCustomizationTypeCheckedChanged)
+
+    self.calculateAllFeaturesButton.connect('clicked(bool)', self.onCalculateAllFeaturesButton)
+    self.calculateNoFeaturesButton.connect('clicked(bool)', self.onCalculateNoFeaturesButton)
+
+    self.parameterFilePathLineEdit.connect('currentPathChanged(QString)', self.onSelect)
+
+    # General Section
+    self.applyButton.connect('clicked(bool)', self.onApplyButton)
+
+    # Add vertical spacer
+    self.layout.addStretch(1)
+
+    # Refresh Apply button state
+    self.onSelect()
+
+  def _addInputVolumeSection(self):
+    inputVolumeCollapsibleButton = ctk.ctkCollapsibleButton()
+    inputVolumeCollapsibleButton.text = 'Select Input Volume and Segmentation'
+    self.layout.addWidget(inputVolumeCollapsibleButton)
 
     # Layout within the dummy collapsible button
-    parametersFormLayout = qt.QFormLayout(parametersCollapsibleButton)
+    inputVolumeFormLayout = qt.QFormLayout(inputVolumeCollapsibleButton)
 
     #
     # input volume selector
@@ -70,7 +120,7 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
     self.inputVolumeSelector.showChildNodeTypes = False
     self.inputVolumeSelector.setMRMLScene(slicer.mrmlScene)
     self.inputVolumeSelector.setToolTip('Pick the input image for the feature calculation.')
-    parametersFormLayout.addRow('Input Image Volume: ', self.inputVolumeSelector)
+    inputVolumeFormLayout.addRow('Input Image Volume: ', self.inputVolumeSelector)
 
     #
     # input mask volume selector
@@ -83,9 +133,9 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
     self.inputMaskSelector.noneEnabled = True
     self.inputMaskSelector.showHidden = False
     self.inputMaskSelector.showChildNodeTypes = False
-    self.inputMaskSelector.setMRMLScene( slicer.mrmlScene )
-    self.inputMaskSelector.setToolTip( 'Pick the input mask for the feature calculation.')
-    parametersFormLayout.addRow('Input LabelMap: ', self.inputMaskSelector)
+    self.inputMaskSelector.setMRMLScene(slicer.mrmlScene)
+    self.inputMaskSelector.setToolTip('Pick the input mask for the feature calculation.')
+    inputVolumeFormLayout.addRow('Input LabelMap: ', self.inputMaskSelector)
 
     #
     # input segmentation selector
@@ -98,15 +148,52 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
     self.inputSegmentationSelector.noneEnabled = True
     self.inputSegmentationSelector.showHidden = False
     self.inputSegmentationSelector.showChildNodeTypes = False
-    self.inputSegmentationSelector.setMRMLScene( slicer.mrmlScene )
+    self.inputSegmentationSelector.setMRMLScene(slicer.mrmlScene)
     self.inputSegmentationSelector.setToolTip('Pick the input segmentation for the feature calculation.')
-    parametersFormLayout.addRow('Input Segmentation: ', self.inputSegmentationSelector)
+    inputVolumeFormLayout.addRow('Input Segmentation: ', self.inputSegmentationSelector)
+
+  def _addCustomizationSection(self):
+    customizationCollapsibleButton = ctk.ctkCollapsibleButton()
+    customizationCollapsibleButton.text = 'Extraction Customization'
+    customizationCollapsibleButton.collapsed = True
+    self.layout.addWidget(customizationCollapsibleButton)
+
+    customizationFormLayout = qt.QFormLayout(customizationCollapsibleButton)
 
     #
-    # Feature class selection
+    # Radiobuttons to select customization Type
     #
+
+    self.manualCustomizationRadioButton = qt.QRadioButton()
+    self.manualCustomizationRadioButton.text = 'Manual Customization'
+    self.manualCustomizationRadioButton.checked = True
+    customizationFormLayout.layout().addWidget(self.manualCustomizationRadioButton)
+
+    self.parameterFileCustomizationRadioButton = qt.QRadioButton()
+    self.parameterFileCustomizationRadioButton.text = 'Parameter File Customization'
+    self.parameterFileCustomizationRadioButton.checked = False
+    customizationFormLayout.layout().addWidget(self.parameterFileCustomizationRadioButton)
+
+    #
+    # Manual Customization
+    #
+    self.manualCustomizationGroupBox = qt.QGroupBox('Manual Customization')
+    self.manualCustomizationGroupBox.visible = True
+    # self.manualCustomizationGroupBox.checkable = True
+    customizationFormLayout.addWidget(self.manualCustomizationGroupBox)
+
+    manualCustomizationFormLayout = qt.QFormLayout(self.manualCustomizationGroupBox)
+
+    # Feature Class section
+    featureClassCollapsibleButton = ctk.ctkCollapsibleButton()
+    featureClassCollapsibleButton.text = 'Feature Classes'
+    featureClassCollapsibleButton.collapsed = False
+    manualCustomizationFormLayout.addWidget(featureClassCollapsibleButton)
+
+    featureClassLayout = qt.QFormLayout(featureClassCollapsibleButton)
+
     self.featuresLayout = qt.QHBoxLayout()
-    parametersFormLayout.addRow('Features:', self.featuresLayout)
+    featureClassLayout.addRow('Features:', self.featuresLayout)
 
     self.featuresButtonGroup = qt.QButtonGroup(self.featuresLayout)
     self.featuresButtonGroup.exclusive = False
@@ -128,7 +215,7 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
 
     # Add buttons to select all or none
     self.buttonsLayout = qt.QHBoxLayout()
-    parametersFormLayout.addRow('Toggle Features:', self.buttonsLayout)
+    featureClassLayout.addRow('Toggle Features:', self.buttonsLayout)
 
     self.calculateAllFeaturesButton = qt.QPushButton('All Features')
     self.calculateAllFeaturesButton.toolTip = 'Calculate all feature classes.'
@@ -139,16 +226,43 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
     self.calculateNoFeaturesButton.enabled = True
     self.buttonsLayout.addWidget(self.calculateNoFeaturesButton)
 
+    # Resampling and Filtering
+    filteringCollapsibleButton = ctk.ctkCollapsibleButton()
+    filteringCollapsibleButton.text = 'Resampling and Filtering'
+    filteringCollapsibleButton.collapsed = False
+    manualCustomizationFormLayout.addRow(filteringCollapsibleButton)
+    # Layout within the dummy collapsible button
+    filteringFormLayout = qt.QFormLayout(filteringCollapsibleButton)
+
+    # Resampling
+    self.resampledVoxelSize = qt.QLineEdit()
+    self.resampledVoxelSize.toolTip = 'Three floating-point numbers separated by comma defining the resampled pixel ' \
+                                      'size (mm).'
+    filteringFormLayout.addRow('Resampled voxel size', self.resampledVoxelSize)
+
+    # LoG kernel sizes. default to 5 (?)
+    self.logKernelSizes = qt.QLineEdit()
+    self.logKernelSizes.toolTip = 'Laplacian of Gaussian filter kernel sizes (mm), separated by comma. ' \
+                                  'If empty, no LoG filtering will be applied.'
+    filteringFormLayout.addRow('LoG kernel sizes', self.logKernelSizes)
+
+    # Wavelet
+    self.waveletCheckBox = qt.QCheckBox()
+    self.waveletCheckBox.checked = 0
+    self.waveletCheckBox.toolTip = 'If checked, PyRadiomics will calculate features on the image after applying ' \
+                                   'wavelet transformation'
+    filteringFormLayout.addRow('Wavelet-based features', self.waveletCheckBox)
+
     #
-    # Feature calculation options
+    # Feature calculation settings
     #
-    optionsCollapsibleButton = ctk.ctkCollapsibleButton()
-    optionsCollapsibleButton.text = 'Options'
-    optionsCollapsibleButton.collapsed = True
-    self.layout.addWidget(optionsCollapsibleButton)
+    settingsCollapsibleButton = ctk.ctkCollapsibleButton()
+    settingsCollapsibleButton.text = 'Settings'
+    settingsCollapsibleButton.collapsed = False
+    manualCustomizationFormLayout.addWidget(settingsCollapsibleButton)
 
     # Layout within the dummy collapsible button
-    optionsFormLayout = qt.QFormLayout(optionsCollapsibleButton)
+    settingsFormLayout = qt.QFormLayout(settingsCollapsibleButton)
 
     # bin width, defaults to 25
     self.binWidthSliderWidget = ctk.ctkSliderWidget()
@@ -158,64 +272,44 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
     self.binWidthSliderWidget.maximum = 100
     self.binWidthSliderWidget.value = 25
     self.binWidthSliderWidget.toolTip = 'Set the bin width'
-    optionsFormLayout.addRow('Bin Width', self.binWidthSliderWidget)
+    settingsFormLayout.addRow('Bin Width', self.binWidthSliderWidget)
 
     # symmetricalGLCM flag, defaults to false
     self.symmetricalGLCMCheckBox = qt.QCheckBox()
     self.symmetricalGLCMCheckBox.checked = 1
     self.symmetricalGLCMCheckBox.toolTip = 'Use a symmetrical GLCM matrix'
-    optionsFormLayout.addRow('Enforce Symmetrical GLCM', self.symmetricalGLCMCheckBox)
-
-    # label for the mask, defaults to 1
-    self.labelSliderWidget = ctk.ctkSliderWidget()
-    self.labelSliderWidget.singleStep = 1
-    self.labelSliderWidget.decimals = 0
-    self.labelSliderWidget.minimum = 0
-    self.labelSliderWidget.maximum = 255
-    self.labelSliderWidget.value = 1
-    self.labelSliderWidget.toolTip = 'Set the label to use for masking the image'
-    # optionsFormLayout.addRow('Label', self.labelSliderWidget)
-
-    filteringCollapsibleButton = ctk.ctkCollapsibleButton()
-    filteringCollapsibleButton.text = 'Filtering'
-    filteringCollapsibleButton.collapsed = True
-    optionsFormLayout.addRow(filteringCollapsibleButton)
-
-    # LoG kernel sizes. default to 5 (?)
-    self.logKernelSizes = qt.QLineEdit()
-    self.binWidthSliderWidget.toolTip = 'Laplacian of Gaussian filter kernel sizes (mm), separated by comma. If empty, no LoG filtering will be applied.'
-    # Layout within the dummy collapsible button
-    filteringFormLayout = qt.QFormLayout(filteringCollapsibleButton)
-    filteringFormLayout.addRow('LoG kernel sizes', self.logKernelSizes)
-
-    # Resampling
-    self.resampledVoxelSize = qt.QLineEdit()
-    self.resampledVoxelSize.toolTip = 'Three floating-point numbers separated by comma defining the resampled pixel size (mm).'
-    # Layout within the dummy collapsible button
-    filteringFormLayout.addRow('Resampled voxel size', self.resampledVoxelSize)
-
-    # Wavelet
-    self.waveletCheckBox = qt.QCheckBox()
-    self.waveletCheckBox.checked = 0
-    self.waveletCheckBox.toolTip = \
-      'If checked, PyRadiomics will calculate features on the image after applying wavelet transformation'
-    optionsFormLayout.addRow('Wavelet-based features', self.waveletCheckBox)
-
-    # debug logging flag, defaults to false
-    self.debuggingCheckBox = qt.QCheckBox()
-    self.debuggingCheckBox.checked = 0
-    self.debuggingCheckBox.toolTip = \
-      'If checked, PyRadiomics log messages from level DEBUG and higher will be added to the slicer log'
-    optionsFormLayout.addRow('Store debug log', self.debuggingCheckBox)
+    settingsFormLayout.addRow('Enforce Symmetrical GLCM', self.symmetricalGLCMCheckBox)
 
     #
-    # Output table
+    # Parameter File Customization
     #
+
+    self.parameterCustomizationGroupBox = qt.QGroupBox('Parameter File Customization')
+    self.parameterCustomizationGroupBox.visible = False
+    # self.parameterCustomizationGroupBox.checkable = True
+    customizationFormLayout.addWidget(self.parameterCustomizationGroupBox)
+
+    parameterCustomizationFormLayout = qt.QFormLayout(self.parameterCustomizationGroupBox)
+
+    # Pathe edit to select parameter file
+    self.parameterFilePathLineEdit = ctk.ctkPathLineEdit(filters=ctk.ctkPathLineEdit.Files)
+    parameterCustomizationFormLayout.addRow("Paramater File", self.parameterFilePathLineEdit)
+
+  def _addOutputSection(self):
     outputCollapsibleButton = ctk.ctkCollapsibleButton()
     outputCollapsibleButton.text = 'Output'
     self.layout.addWidget(outputCollapsibleButton)
+
     outputFormLayout = qt.QFormLayout(outputCollapsibleButton)
 
+    # verbose logging flag, defaults to false
+    self.verboseCheckBox = qt.QCheckBox()
+    self.verboseCheckBox.checked = 0
+    self.verboseCheckBox.toolTip = 'If checked, PyRadiomics outputs log messages from level DEBUG and higher ' \
+                                   '(instead of INFO and higher)'
+    outputFormLayout.addRow('Verbose Output', self.verboseCheckBox)
+
+    # Output Table
     self.outputTableSelector = slicer.qMRMLNodeComboBox()
     self.outputTableSelector.nodeTypes = ['vtkMRMLTableNode']
     self.outputTableSelector.addEnabled = True
@@ -224,38 +318,27 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
     self.outputTableSelector.removeEnabled = True
     self.outputTableSelector.noneEnabled = False
     self.outputTableSelector.setMRMLScene(slicer.mrmlScene)
-    self.outputTableSelector.toolTip = \
-      'Select the table where features will be saved, resets feature values on each run.'
+    self.outputTableSelector.toolTip = 'Select the table where features will be saved, resets feature values on ' \
+                                       'each run.'
     outputFormLayout.addRow('Output table:', self.outputTableSelector)
-
-    #
-    # Apply Button
-    #
-    self.applyButton = qt.QPushButton('Apply')
-    self.applyButton.toolTip = 'Run the algorithm.'
-    self.applyButton.enabled = False
-    self.layout.addWidget(self.applyButton)
-
-    # connections
-    self.calculateAllFeaturesButton.connect('clicked(bool)', self.onCalculateAllFeaturesButton)
-    self.calculateNoFeaturesButton.connect('clicked(bool)', self.onCalculateNoFeaturesButton)
-    self.applyButton.connect('clicked(bool)', self.onApplyButton)
-    self.inputVolumeSelector.connect('currentNodeChanged(vtkMRMLNode*)', self.onSelect)
-    self.inputMaskSelector.connect('currentNodeChanged(vtkMRMLNode*)', self.onSelect)
-    self.inputSegmentationSelector.connect('currentNodeChanged(vtkMRMLNode*)', self.onSelect)
-
-    # Add vertical spacer
-    self.layout.addStretch(1)
-
-    # Refresh Apply button state
-    self.onSelect()
 
   def cleanup(self):
     pass
 
   def onSelect(self):
-    self.applyButton.enabled = self.inputVolumeSelector.currentNode() and \
-                               (self.inputMaskSelector.currentNode() or self.inputSegmentationSelector.currentNode())
+    self.applyButton.enabled = (
+                                self.inputVolumeSelector.currentNode()  # Input volume selected
+                                and (self.inputMaskSelector.currentNode()  # Some form of segmentation selected
+                                     or self.inputSegmentationSelector.currentNode())
+                                and (self.manualCustomizationRadioButton.checked  # Customization defined
+                                     or os.path.isfile(self.parameterFilePathLineEdit.currentPath))
+                                )
+
+  def onCustomizationTypeCheckedChanged(self):
+    self.manualCustomizationGroupBox.visible = self.manualCustomizationRadioButton.checked
+    self.parameterCustomizationGroupBox.visible = self.parameterFileCustomizationRadioButton.checked
+
+    self.onSelect()  # Refresh state of the apply button
 
   def getCheckedFeatureClasses(self):
     checkedFeatures = []
@@ -278,7 +361,7 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
       featureButton.checked = False
 
   def onApplyButton(self):
-    if self.debuggingCheckBox.checked:
+    if self.verboseCheckBox.checked:
       # Setup debug logging for the pyradiomics toolbox
       # PyRadiomics logs to stderr by default, which is picked up by slicer and added to the slicer log.
       setVerbosity(logging.DEBUG)
@@ -291,52 +374,64 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
       self.outputTableSelector.setCurrentNode(tableNode)
 
     logic = SlicerRadiomicsLogic()
-    featureClasses = self.getCheckedFeatureClasses()
 
     # Lock GUI
     self.applyButton.text = 'Working...'
     self.applyButton.setEnabled(False)
     slicer.app.processEvents()
 
-    # Compute features
-    settings = {}
-    settings['binWidth'] = self.binWidthSliderWidget.value
-    settings['symmetricalGLCM'] = self.symmetricalGLCMCheckBox.checked
-
-    enabledImageTypes = {'Original': {}}
-
-    logKernelSizesValue = self.logKernelSizes.text
-    if logKernelSizesValue:
-      try:
-        enabledImageTypes['LoG'] = {'sigma': [float(i) for i in logKernelSizesValue.split(',')]}
-      except:
-        self.logger.error('Failed to parse LoG sigma value from string \"'+logKernelSizesValue+'\"')
-        traceback.print_exc()
-        return
-
-    resampledVoxelSizeValue = self.resampledVoxelSize.text
-    if resampledVoxelSizeValue:
-      try:
-        settings['resampledPixelSpacing'] = [float(i) for i in resampledVoxelSizeValue.split(',')]
-      except:
-        self.logger.error('Failed to parse resampled voxel spacing from string \"'+resampledVoxelSizeValue+'\"')
-        settings['resampledPixelSpacing'] = None
-        traceback.print_exc()
-        return
-
-    if self.waveletCheckBox.checked:
-      enabledImageTypes['Wavelet'] = {}
-
     imageNode = self.inputVolumeSelector.currentNode()
     labelNode = self.inputMaskSelector.currentNode()
     segmentationNode = self.inputSegmentationSelector.currentNode()
 
-    try:
-      featuresDict = logic.run(imageNode, labelNode, segmentationNode, featureClasses, settings, enabledImageTypes)
-      logic.exportToTable(featuresDict, self.outputTableSelector.currentNode())
-    except:
-      self.logger.error("Feature calculation failed.")
-      traceback.print_exc()
+    if self.manualCustomizationRadioButton.checked:
+      # Set up customization
+      featureClasses = self.getCheckedFeatureClasses()
+      settings = {}
+      settings['binWidth'] = self.binWidthSliderWidget.value
+      settings['symmetricalGLCM'] = self.symmetricalGLCMCheckBox.checked
+
+      enabledImageTypes = {'Original': {}}
+
+      logKernelSizesValue = self.logKernelSizes.text
+      if logKernelSizesValue:
+        try:
+          enabledImageTypes['LoG'] = {'sigma': [float(i) for i in logKernelSizesValue.split(',')]}
+        except:
+          self.logger.error('Failed to parse LoG sigma value from string \"' + logKernelSizesValue + '\"')
+          traceback.print_exc()
+          return
+
+      resampledVoxelSizeValue = self.resampledVoxelSize.text
+      if resampledVoxelSizeValue:
+        try:
+          settings['resampledPixelSpacing'] = [float(i) for i in resampledVoxelSizeValue.split(',')]
+        except:
+          self.logger.error('Failed to parse resampled voxel spacing from string \"' + resampledVoxelSizeValue + '\"')
+          settings['resampledPixelSpacing'] = None
+          traceback.print_exc()
+          return
+
+      if self.waveletCheckBox.checked:
+        enabledImageTypes['Wavelet'] = {}
+
+      # Compute features
+      try:
+        featuresDict = logic.run(imageNode, labelNode, segmentationNode, featureClasses, settings, enabledImageTypes)
+        logic.exportToTable(featuresDict, self.outputTableSelector.currentNode())
+      except:
+        self.logger.error("Feature calculation failed.")
+        traceback.print_exc()
+
+    else:
+      # Compute Features
+      try:
+        parameterFile = self.parameterFilePathLineEdit.currentPath
+        featuresDict = logic.runWithParameterFile(imageNode, labelNode, segmentationNode, parameterFile)
+        logic.exportToTable(featuresDict, self.outputTableSelector.currentNode())
+      except:
+        self.logger.error("Feature calculation failed.")
+        traceback.print_exc()
 
     # Unlock GUI
     self.applyButton.setEnabled(True)
@@ -388,7 +483,7 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
     resampledLabelImage = self.resampleITKLabel(combinedLabelImage, grayscaleImage)
 
     ls = sitk.LabelStatisticsImageFilter()
-    ls.Execute(resampledLabelImage,resampledLabelImage)
+    ls.Execute(resampledLabelImage, resampledLabelImage)
     th = sitk.BinaryThresholdImageFilter()
     th.SetInsideValue(1)
     th.SetOutsideValue(0)
@@ -396,7 +491,7 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
     for l in ls.GetLabels()[1:]:
       th.SetUpperThreshold(l)
       th.SetLowerThreshold(l)
-      labelsDict[labelmapNode.GetName()+"_label_"+str(l)] = th.Execute(combinedLabelImage)
+      labelsDict[labelmapNode.GetName() + "_label_" + str(l)] = th.Execute(combinedLabelImage)
 
     return labelsDict
 
@@ -421,7 +516,7 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
         return labelsDict
       labelmapImage = sitk.ReadImage(sitkUtils.GetSlicerITKReadWriteAddress(segmentLabelmapNode.GetName()))
       labelmapImage = self.resampleITKLabel(labelmapImage, grayscaleImage)
-      labelsDict[segmentationNode.GetName()+"_segment_"+segment.GetName()] = labelmapImage
+      labelsDict[segmentationNode.GetName() + "_segment_" + segment.GetName()] = labelmapImage
 
     displayNode = segmentLabelmapNode.GetDisplayNode()
     if displayNode:
@@ -430,37 +525,36 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
 
     return labelsDict
 
-  def calculateFeatures(self, grayscaleImage, labelImage, featureClasses, settings, enabledImageTypes):
-    # type: (Simple ITK image object, Simple ITK image object, list, dict, dict) -> dict
+  def calculateFeatures(self, imageNode, labelNode, segmentationNode, extractor):
     """
-    Calculate a single feature on the input MRML volume nodes
+    Calculate the feature on the image node for each ROI contained in the labelNode and/or the segmentation node, using
+    an instantiated RadiomicsFeatureExtractor (with customization already configured).
     """
-    self.logger.debug('Calculating features for %s', featureClasses)
+    # Prepare the input volume
+    self.logger.debug('Read the input image node')
+    grayscaleImage = sitk.ReadImage(sitkUtils.GetSlicerITKReadWriteAddress(imageNode.GetName()))
 
-    self.logger.debug('Instantiating the extractor')
+    # Prepare the input label map
+    self.logger.debug('Read and prepare the input ROI(s)')
+    labelsDict = {}
+    if labelNode:
+      labelsDict = self.prepareLabelsFromLabelmap(labelNode, grayscaleImage, labelsDict)
+    if segmentationNode:
+      labelsDict = self.prepareLabelsFromSegmentation(segmentationNode, grayscaleImage, labelsDict)
 
-    extractor = featureextractor.RadiomicsFeaturesExtractor(**settings)
+    # Calculate the features
+    featuresDict = {}
+    for l in labelsDict.keys():
+      self.logger.debug("Calculating features for " + l)
+      try:
+        self.logger.debug('Starting feature calculation')
+        featuresDict[l] = extractor.execute(grayscaleImage, labelsDict[l])
+        self.logger.debug('Features calculated')
+      except:
+        self.logger.error('calculateFeatures() failed')
+        traceback.print_exc()
 
-    extractor.disableAllFeatures()
-    for feature in featureClasses:
-      extractor.enableFeatureClassByName(feature)
-
-    extractor.disableAllImageTypes()
-    for imageType in enabledImageTypes:
-      extractor.enableImageTypeByName(imageType, customArgs=enabledImageTypes[imageType])
-
-    self.logger.debug('Starting feature calculation')
-
-    featureValues = {}
-    try:
-      featureValues = extractor.execute(grayscaleImage, labelImage)
-    except:
-      self.logger.error('pyradiomics feature extractor failed')
-      traceback.print_exc()
-
-    self.logger.debug('Features calculated')
-
-    return featureValues
+    return featuresDict
 
   def exportToTable(self, featuresDict, table):
     """
@@ -475,7 +569,7 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
       col = table.AddColumn()
       col.SetName(k)
     # Fill columns
-    for label,features in featuresDict.items():
+    for label, features in featuresDict.items():
       for featureKey, featureValue in features.items():
         processingType, featureClass, featureName = str(featureKey).split("_", 3)
         rowIndex = table.AddEmptyRow()
@@ -509,36 +603,47 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
     """
     Run the actual algorithm
     """
+    self.logger.info('Feature extraction started')
 
-    self.logger.info('Processing started')
+    self.logger.debug('Instantiating the extractor')
 
-    grayscaleImage = sitk.ReadImage(sitkUtils.GetSlicerITKReadWriteAddress(imageNode.GetName()))
+    extractor = featureextractor.RadiomicsFeaturesExtractor(**settings)
 
-    #sitkUtils.PushToSlicer(label, labelNode.GetName(), overwrite=True, compositeView=2)
+    self.logger.debug('Setting the enabled feature classes')
+    extractor.disableAllFeatures()
+    for feature in featureClasses:
+      extractor.enableFeatureClassByName(feature)
 
-    labelsDict = {}
-    if labelNode:
-      labelsDict = self.prepareLabelsFromLabelmap(labelNode, grayscaleImage, labelsDict)
-    if segmentationNode:
-      labelsDict = self.prepareLabelsFromSegmentation(segmentationNode, grayscaleImage, labelsDict)
+    self.logger.debug('Setting the enabled image types')
+    extractor.disableAllImageTypes()
+    for imageType in enabledImageTypes:
+      extractor.enableImageTypeByName(imageType, customArgs=enabledImageTypes[imageType])
 
-    #self.featureValues = extractor.execute(grayscaleImage, labelImage, image, **kwargs)
+    return self.calculateFeatures(imageNode, labelNode, segmentationNode, extractor)
 
-    featuresDict = {}
-    for l in labelsDict.keys():
-      self.logger.debug("Calculating features for "+l)
-      try:
-        featuresDict[l] = self.calculateFeatures(grayscaleImage,
-                                                 labelsDict[l],
-                                                 featureClasses,
-                                                 settings,
-                                                 enabledImageTypes)
-      except:
-        self.logger.error('calculateFeatures() failed')
-        traceback.print_exc()
+  def runWithParameterFile(self, imageNode, labelNode, segmentationNode, parameterFilePath):
+    """
+    Run the actual algorithm using the provided customization file and provided image and region of interest(s) (ROIs)
 
-    return featuresDict
+    :param imageNode: Slicer Volume node representing the image from which features should be extracted
+    :param labelNode: Slicer Labelmap node containing the ROIs as integer encoded volume (voxel value indicates ROI id)
+    :param segmentationNode: Slicer segmentation node containing the segments of the ROIs (will be converted to binary
+    label maps)
+    :param parameterFilePath: String file path pointing to the parameter file used to customize the extraction
+    :return: Dictionary containing the extracted features for each ROI
+    """
+    self.logger.info('Feature extraction started')
 
+    self.logger.debug('Instantiating the extractor')
+
+    # Instantiate the extractor with the specified customization file. If this file is invalid in any way, this call
+    # will raise an error.
+    extractor = featureextractor.RadiomicsFeaturesExtractor(parameterFilePath)
+
+    return self.calculateFeatures(imageNode, labelNode, segmentationNode, extractor)
+
+
+# noinspection PyAttributeOutsideInit
 class SlicerRadiomicsTest(ScriptedLoadableModuleTest):
   """
   This is the test case for your scripted module.
@@ -574,7 +679,7 @@ class SlicerRadiomicsTest(ScriptedLoadableModuleTest):
     self.delayDisplay('Starting the test')
     #
     # first, get some data
-    #https://github.com/Radiomics/SlicerRadiomics/releases/download/TestData-v1.0.0/lung1_binary.seg.nrrd
+    # https://github.com/Radiomics/SlicerRadiomics/releases/download/TestData-v1.0.0/lung1_binary.seg.nrrd
     import urllib
     dataRelease = 'v1.0.0'
     dataURLPrefix = 'https://github.com/Radiomics/SlicerRadiomics/releases/download/TestData'
@@ -586,14 +691,14 @@ class SlicerRadiomicsTest(ScriptedLoadableModuleTest):
                  ('lung1_surface.seg.vtm', slicer.util.loadSegmentation))
 
     for item, loader in dataItems:
-      url = dataURLPrefix+'-'+dataRelease+'/'+item
+      url = dataURLPrefix + '-' + dataRelease + '/' + item
       filePath = slicer.app.temporaryPath + '/' + item
       if not os.path.exists(filePath) or os.stat(filePath).st_size == 0:
         self.logger.info('Requesting download %s from %s...\n' % (item, url))
-        self.assertTrue(urllib.urlretrieve(url, filePath),'Failed to download from '+url)
+        self.assertTrue(urllib.urlretrieve(url, filePath), 'Failed to download from ' + url)
       if loader:
-        self.logger.info('Loading %s from %s...' % (item,filePath))
-        self.assertTrue(loader(filePath),'Failed to load '+item)
+        self.logger.info('Loading %s from %s...' % (item, filePath))
+        self.assertTrue(loader(filePath), 'Failed to load ' + item)
 
     self.delayDisplay(
       'Finished with download and loading %d volumes' % (slicer.mrmlScene.GetNumberOfNodesByClass('vtkMRMLVolumeNode')))
@@ -616,11 +721,10 @@ class SlicerRadiomicsTest(ScriptedLoadableModuleTest):
     enabledImageTypes = {"Original": {}}
 
     for segNode in [binaryNode, surfaceNode]:
-
       featuresDict = logic.run(grayscaleNode, labelmapNode, segNode, featureClasses, settings, enabledImageTypes)
 
       tableNode = slicer.vtkMRMLTableNode()
-      tableNode.SetName('lung1_label and '+segNode.GetName())
+      tableNode.SetName('lung1_label and ' + segNode.GetName())
       slicer.mrmlScene.AddNode(tableNode)
       logic.exportToTable(featuresDict, tableNode)
       logic.showTable(tableNode)
