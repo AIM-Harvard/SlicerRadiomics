@@ -688,11 +688,12 @@ class SlicerRadiomicsTest(ScriptedLoadableModuleTest):
                  ('lung1_binary.seg.nrrd', slicer.util.loadSegmentation),
                  ('lung1.seg_0.vtp', None),
                  ('lung1.seg_1.vtp', None),
-                 ('lung1_surface.seg.vtm', slicer.util.loadSegmentation))
+                 ('lung1_surface.seg.vtm', slicer.util.loadSegmentation),
+                 ('Params.yaml', None))
 
     for item, loader in dataItems:
       url = dataURLPrefix + '-' + dataRelease + '/' + item
-      filePath = slicer.app.temporaryPath + '/' + item
+      filePath = os.path.join(slicer.app.temporaryPath, item)
       if not os.path.exists(filePath) or os.stat(filePath).st_size == 0:
         self.logger.info('Requesting download %s from %s...\n' % (item, url))
         self.assertTrue(urllib.urlretrieve(url, filePath), 'Failed to download from ' + url)
@@ -707,6 +708,8 @@ class SlicerRadiomicsTest(ScriptedLoadableModuleTest):
     labelmapNode = slicer.util.getNode(pattern='lung1_label')
     binaryNode = slicer.util.getNode(pattern='lung1_binary')
     surfaceNode = slicer.util.getNode(pattern='lung1_surface')
+
+    parameterFile = os.path.join(slicer.app.temporaryPath, 'Params.yaml')
 
     logic = SlicerRadiomicsLogic()
     self.assertIsNotNone(logic.hasImageData(grayscaleNode))
@@ -728,5 +731,13 @@ class SlicerRadiomicsTest(ScriptedLoadableModuleTest):
       slicer.mrmlScene.AddNode(tableNode)
       logic.exportToTable(featuresDict, tableNode)
       logic.showTable(tableNode)
+
+    featuresDict = logic.runWithParameterFile(grayscaleNode, labelmapNode, binaryNode, parameterFile)
+
+    tableNode = slicer.vtkMRMLTableNode()
+    tableNode.SetName('lung1_label and ' + binaryNode.GetName() + ' customized with Params.yaml')
+    slicer.mrmlScene.AddNode(tableNode)
+    logic.exportToTable(featuresDict, tableNode)
+    logic.showTable(tableNode)
 
     self.delayDisplay('Test passed!')
