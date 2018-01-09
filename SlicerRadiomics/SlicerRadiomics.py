@@ -293,7 +293,7 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
 
     # Pathe edit to select parameter file
     self.parameterFilePathLineEdit = ctk.ctkPathLineEdit(filters=ctk.ctkPathLineEdit.Files)
-    parameterCustomizationFormLayout.addRow("Paramater File", self.parameterFilePathLineEdit)
+    parameterCustomizationFormLayout.addRow("Parameter File", self.parameterFilePathLineEdit)
 
   def _addOutputSection(self):
     outputCollapsibleButton = ctk.ctkCollapsibleButton()
