@@ -36,6 +36,7 @@ endif()
 #-----------------------------------------------------------------------------
 # Extension modules
 add_subdirectory(SlicerRadiomics)
+add_subdirectory(SlicerRadiomicsCLI)
 ## NEXT_MODULE
 
 #-----------------------------------------------------------------------------
