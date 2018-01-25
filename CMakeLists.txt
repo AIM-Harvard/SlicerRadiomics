@@ -34,8 +34,13 @@ if(${EXTENSION_NAME}_SUPERBUILD)
 endif()
 
 #-----------------------------------------------------------------------------
+list(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+include(SlicerRadiomicsAddCLI)
+
+#-----------------------------------------------------------------------------
 # Extension modules
 add_subdirectory(SlicerRadiomics)
+add_subdirectory(SlicerRadiomicsCLI)
 ## NEXT_MODULE
 
 #-----------------------------------------------------------------------------
