@@ -77,43 +77,33 @@ function(SlicerRadiomicsAddCLI)
     endif()
   endforeach()
 
-  set(build_dir ${SlicerExecutionModel_DEFAULT_CLI_RUNTIME_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR})
-
-  set(cli_script "${MY_NAME}")
-  set(cli_xml "${MY_NAME}.xml")
-
+  set(cli_files
+    "${MY_NAME}"
+    "${MY_NAME}.xml"
+    )
   if(WIN32)
-    set(cli_batch "${MY_NAME}.bat")
-
-    add_custom_target(Copy${MY_NAME}Scripts ALL
-      COMMAND ${CMAKE_COMMAND} -E copy_if_different ${cli_script} ${build_dir}/${cli_script}
-      COMMAND ${CMAKE_COMMAND} -E copy_if_different ${cli_batch} ${build_dir}/${cli_batch}
-      COMMAND ${CMAKE_COMMAND} -E copy_if_different ${cli_xml} ${build_dir}/${cli_xml}
-      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-      COMMENT "Copying ${MY_NAME} files into build directory"
-      )
-
-    install(FILES
-        ${cli_script}
-        ${cli_batch}
-        ${cli_xml}
-      DESTINATION ${SlicerExecutionModel_DEFAULT_CLI_INSTALL_RUNTIME_DESTINATION}
-      COMPONENT RuntimeLibraries
-      )
-  else()
-    add_custom_target(Copy${MY_NAME}Scripts ALL
-      COMMAND ${CMAKE_COMMAND} -E copy_if_different ${cli_script} ${build_dir}/${cli_script}
-      COMMAND ${CMAKE_COMMAND} -E copy_if_different ${cli_xml} ${build_dir}/${cli_xml}
-      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-      COMMENT "Copying ${MY_NAME} files into build directory"
-      )
-
-    install(FILES
-        ${cli_script}
-        ${cli_xml}
-      DESTINATION ${SlicerExecutionModel_DEFAULT_CLI_INSTALL_RUNTIME_DESTINATION}
-      COMPONENT RuntimeLibraries
+    list(APPEND cli_files
+      "${MY_NAME}.bat"
       )
   endif()
+
+  set(build_dir ${SlicerExecutionModel_DEFAULT_CLI_RUNTIME_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR})
+  set(copy_commands )
+  foreach(cli_file IN LISTS cli_files)
+    list(APPEND copy_commands
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different ${cli_file} ${build_dir}/${cli_file}
+      )
+  endforeach()
+
+  add_custom_target(Copy${MY_NAME}Scripts ALL
+    ${copy_commands}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    COMMENT "Copying ${MY_NAME} files into build directory"
+    )
+
+  install(FILES ${cli_files}
+    DESTINATION ${SlicerExecutionModel_DEFAULT_CLI_INSTALL_RUNTIME_DESTINATION}
+    COMPONENT RuntimeLibraries
+    )
 
 endfunction()
