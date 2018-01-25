@@ -39,7 +39,7 @@
 #
 #  * The list of module files is composed differently based on the platform:
 #    - Unix: <module_name> and <module_name>.xml
-#    - Windows: <module_name>.bat and <module_name>.xml
+#    - Windows: <module_name>, <module_name>.bat and <module_name>.xml
 #
 function(SlicerRadiomicsAddCLI)
   set(options
@@ -77,25 +77,43 @@ function(SlicerRadiomicsAddCLI)
     endif()
   endforeach()
 
+  set(build_dir ${SlicerExecutionModel_DEFAULT_CLI_RUNTIME_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR})
+
   set(cli_script "${MY_NAME}")
-  if(WIN32)
-    set(cli_script "${MY_NAME}.bat")
-  endif()
   set(cli_xml "${MY_NAME}.xml")
 
-  set(build_dir ${SlicerExecutionModel_DEFAULT_CLI_RUNTIME_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR})
-  add_custom_target(Copy${MY_NAME}Scripts ALL
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${cli_script} ${build_dir}/${cli_script}
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${cli_xml} ${build_dir}/${cli_xml}
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    COMMENT "Copying ${MY_NAME} files into build directory"
-    )
+  if(WIN32)
+    set(cli_batch "${MY_NAME}.bat")
 
-  install(FILES
-      ${cli_script}
-      ${cli_xml}
-    DESTINATION ${SlicerExecutionModel_DEFAULT_CLI_INSTALL_RUNTIME_DESTINATION}
-    COMPONENT RuntimeLibraries
-    )
+    add_custom_target(Copy${MY_NAME}Scripts ALL
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different ${cli_script} ${build_dir}/${cli_script}
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different ${cli_batch} ${build_dir}/${cli_batch}
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different ${cli_xml} ${build_dir}/${cli_xml}
+      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+      COMMENT "Copying ${MY_NAME} files into build directory"
+      )
+
+    install(FILES
+        ${cli_script}
+        ${cli_batch}
+        ${cli_xml}
+      DESTINATION ${SlicerExecutionModel_DEFAULT_CLI_INSTALL_RUNTIME_DESTINATION}
+      COMPONENT RuntimeLibraries
+      )
+  else()
+    add_custom_target(Copy${MY_NAME}Scripts ALL
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different ${cli_script} ${build_dir}/${cli_script}
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different ${cli_xml} ${build_dir}/${cli_xml}
+      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+      COMMENT "Copying ${MY_NAME} files into build directory"
+      )
+
+    install(FILES
+        ${cli_script}
+        ${cli_xml}
+      DESTINATION ${SlicerExecutionModel_DEFAULT_CLI_INSTALL_RUNTIME_DESTINATION}
+      COMPONENT RuntimeLibraries
+      )
+  endif()
 
 endfunction()
