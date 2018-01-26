@@ -427,8 +427,12 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
       # Compute Features
       try:
         parameterFile = self.parameterFilePathLineEdit.currentPath
-        featuresDict = logic.runWithParameterFile(imageNode, labelNode, segmentationNode, parameterFile)
-        logic.exportToTable(featuresDict, self.outputTableSelector.currentNode())
+        # Run in CLI Mode
+        logic.runCLI(imageNode, labelNode, self.outputTableSelector.currentNode(), parameterFile)
+
+        # Run on Slicer python main thread (Freezes UI)
+        #featuresDict = logic.runWithParameterFile(imageNode, labelNode, segmentationNode, parameterFile)
+        #logic.exportToTable(featuresDict, self.outputTableSelector.currentNode())
       except:
         self.logger.error("Feature calculation failed.")
         traceback.print_exc()
@@ -641,6 +645,31 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
     extractor = featureextractor.RadiomicsFeaturesExtractor(parameterFilePath)
 
     return self.calculateFeatures(imageNode, labelNode, segmentationNode, extractor)
+
+  def runCLI(self, imageNode, labelNode, table, parameterFilePath):
+
+    parameters = {}
+    parameters['Image'] = imageNode.GetID()
+    parameters['Mask'] = labelNode.GetID()
+    parameters['param'] = parameterFilePath
+    parameters['out'] = table.GetID()
+
+    RadiomicsCLI = slicer.modules.slicerradiomicscli
+
+    self.cliNode = slicer.cli.run(RadiomicsCLI, None, parameters)
+    self.cliNode.AddObserver('ModifiedEvent', self.onStatus)
+
+  def onStatus(self, caller, event):
+    if caller.IsA('vtkMRMLCommandLineModuleNode'):
+      status = caller.GetStatusString()
+      error_text = caller.GetErrorText()
+      if error_text != '':
+        print(error_text)
+      if status == "Completed":
+        print("CLI DONE")
+        caller.RemoveAllObservers()
+        slicer.mrmlScene.RemoveNode(self.cliNode)
+        self.cliNode = None
 
 
 # noinspection PyAttributeOutsideInit
