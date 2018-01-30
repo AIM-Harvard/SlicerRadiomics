@@ -11,31 +11,40 @@
   <parameters>
     <label>IO</label>
     <description><![CDATA[Input/output parameters]]></description>
-    <image>
+    <image type="scalar">
       <name>Image</name>
       <label>input Source Image</label>
       <channel>input</channel>
       <index>0</index>
       <description><![CDATA[Input image volume to extract features from]]></description>
     </image>
-    <image>
+    <image type="label">
       <name>Mask</name>
       <label>input Label map</label>
       <channel>input</channel>
       <index>1</index>
       <description><![CDATA[Input label map volume defining the ROI to extract features from]]></description>
     </image>
-    <table fileExtensions=".csv">
-      <longflag alias="o">out</longflag>
-      <label>Results</label>
-      <channel>output</channel>
-      <description><![CDATA[calculated results]]></description>
-    </table>
     <file fileExtensions=".yaml,.yml,.json">
       <longflag alias="p">param</longflag>
       <label>customization parameter file</label>
       <channel>input</channel>
       <description><![CDATA[YAML or JSON structured file defining the customization that is to be applied.]]></description>
     </file>
+    <integer>
+      <longflag alias="l">label</longflag>
+      <label>ROI label value</label>
+      <minimum>1</minimum>
+      <maximum>255</maximum>
+      <step>1</step>
+      <channel>input</channel>
+      <description><![CDATA[Integer specifying the value identifying the ROI in the label map from which features will be extracted]]></description>
+    </integer>
+    <table fileExtensions=".csv">
+      <longflag alias="o">out</longflag>
+      <label>Results</label>
+      <channel>output</channel>
+      <description><![CDATA[calculated results]]></description>
+    </table>
   </parameters>
 </executable>
