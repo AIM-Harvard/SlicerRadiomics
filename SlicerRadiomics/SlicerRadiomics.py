@@ -477,6 +477,7 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
     self.labelGenerators = None
     self.parameterFile = None
     self.outTable = None
+    self.featureNames = None
 
     self.labelName = None
 
@@ -540,6 +541,7 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
     self.parameterFile = None
     self.labelGenerators = None
     self.outTable = None
+    self.featureNames = None
 
     self.labelName = None
 
@@ -637,7 +639,7 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
     self.logger.info('Initializing output table')
 
     # Define table columns
-    for k in ['Label', 'Image type', 'Feature Class', 'Feature Name', 'Value']:
+    for k in ['Image type', 'Feature Class', 'Feature Name']:  #  ['Label', 'Image type', 'Feature Class', 'Feature Name', 'Value']:
       col = self.outTable.AddColumn()
       col.SetName(k)
 
@@ -656,19 +658,25 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
       self.logger.warning('Output parsing failed!')
 
     # Use a csv reader object to correctly handle commas inside values (e.g. in general_info_GeneralSettings)
-    outputReader = csv.reader(output)
-    featureKeys = outputReader.next()  # 1st line
-    featureValues = outputReader.next()  # 2nd line
+    outputReader = csv.DictReader(output)
+    features = outputReader.next()
 
     tableWasModified = self.outTable.StartModify()
-    for feature_idx, featureKey in enumerate(featureKeys):
-      processingType, featureClass, featureName = str(featureKey).split("_", 3)
-      rowIndex = self.outTable.AddEmptyRow()
-      self.outTable.SetCellText(rowIndex, 0, self.labelName)
-      self.outTable.SetCellText(rowIndex, 1, processingType)
-      self.outTable.SetCellText(rowIndex, 2, featureClass)
-      self.outTable.SetCellText(rowIndex, 3, featureName)
-      self.outTable.SetCellText(rowIndex, 4, str(featureValues[feature_idx]))
+
+    if self.featureNames is None:
+      self.featureNames = output[0].split(',')
+
+      for featureKey in self.featureNames:
+        processingType, featureClass, featureName = str(featureKey).split("_", 3)
+        rowIndex = self.outTable.AddEmptyRow()
+        self.outTable.SetCellText(rowIndex, 0, processingType)
+        self.outTable.SetCellText(rowIndex, 1, featureClass)
+        self.outTable.SetCellText(rowIndex, 2, featureName)
+
+    col = self.outTable.AddColumn()
+    col.SetName(self.labelName)
+    for feature_idx, featureKey in enumerate(self.featureNames):
+      col.SetValue(feature_idx, features.get(featureKey, 'NaN'))
 
     self.outTable.Modified()
     self.outTable.EndModify(tableWasModified)
