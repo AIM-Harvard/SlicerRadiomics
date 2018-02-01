@@ -78,13 +78,14 @@ function(SlicerRadiomicsAddCLI)
   endforeach()
 
   set(cli_files
-    "${MY_NAME}"
     "${MY_NAME}.xml"
+    "${MY_NAME}Script"
     )
+
   if(WIN32)
-    list(APPEND cli_files
-      "${MY_NAME}.bat"
-      )
+    set(cli_script "${MY_NAME}.bat")
+  else()
+    set(cli_script "${MY_NAME}")
   endif()
 
   set(build_dir ${SlicerExecutionModel_DEFAULT_CLI_RUNTIME_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR})
@@ -95,13 +96,30 @@ function(SlicerRadiomicsAddCLI)
       )
   endforeach()
 
+  list(APPEND copy_commands
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${cli_script} ${build_dir}/${cli_script}
+    )
+
   add_custom_target(Copy${MY_NAME}Scripts ALL
     ${copy_commands}
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     COMMENT "Copying ${MY_NAME} files into build directory"
     )
 
+  if(NOT WIN32)
+    add_custom_target(SetPermissions${MY_NAME}ShellScript ALL
+      COMMAND chmod u+x ${build_dir}/${MY_NAME}
+      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+      COMMENT "Setting Executable (User) permission for ${MY_NAME} in build directory"
+      )
+  endif()
+
   install(FILES ${cli_files}
+    DESTINATION ${SlicerExecutionModel_DEFAULT_CLI_INSTALL_RUNTIME_DESTINATION}
+    COMPONENT RuntimeLibraries
+    )
+
+  install(PROGRAMS ${cli_script}
     DESTINATION ${SlicerExecutionModel_DEFAULT_CLI_INSTALL_RUNTIME_DESTINATION}
     COMPONENT RuntimeLibraries
     )
