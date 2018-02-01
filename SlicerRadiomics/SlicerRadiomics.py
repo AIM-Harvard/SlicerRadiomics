@@ -504,7 +504,7 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
     for l in labels:
       if l == 0:
         continue
-      yield '%s_label_%d' % (labelNode.GetName(), l), labelNode, l, imageNode
+      yield '%s_label_%d' % (labelNode.GetName(), l), labelNode, int(l), imageNode
 
   def _getLabelGeneratorFromSegmentationNode(self, segmentationNode, imageNode):
     import vtkSegmentationCorePython as vtkSegmentationCore
