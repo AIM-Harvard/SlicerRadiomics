@@ -469,97 +469,34 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
 
     self.logger.debug('Slicer Radiomics logic initialized')
 
-    self.cliNode = None
-    self.onStatusObserverTag = None
-    self.cli_running = False
+    self.cliNode = None  # Reference to the CLI Node that executes the extraction
+    self.outTable = None  # Output table which will hold calculated features
 
-    self.imageNode = None
-    self.labelGenerators = None
-    self.parameterFile = None
-    self.outTable = None
-    self.featureNames = None
+    # Variables to hold observers and status for asynchronous processing
+    self._onStatusObserverTag = None
+    self._cli_running = False
 
-    self.labelName = None
+    # Variables to hold the input image/label nodes and the parameter file for customization
+    self._labelGenerators = None
+    self._parameterFile = None
+    self._labelName = None
 
-    self.delete_parameterFile = False
+    # If manual customization is used, a temporary parameter file will be generated. However, this must also be deleted upon completion
+    self._delete_parameterFile = False
 
+    # Variable to hold the calculated feature names
+    # This is set on the first time results are returned and used to fill the table for subsequent results
+    self._featureNames = None
+
+    # If set, this function will be called upon completion of extraction
+    # Once per call to runCLI or runCLIWithParameterFile
     self.callback = None
 
     # Set this to true to run synchronously (blocks UI thread until CLI is done)
     self.runSync = False
 
-  def hasImageData(self, volumeNode):
-    """This is an example logic method that
-    returns true if the passed in volume
-    node has valid image data
-    """
-    self.logger.debug('Checking if volume has image data')
-
-    if not volumeNode:
-      self.logger.debug('hasImageData failed: no volume node')
-      return False
-    if volumeNode.GetImageData() is None:
-      self.logger.debug('hasImageData failed: no image data in volume node')
-      return False
-    return True
-
-  def onStatus(self, caller, event):
-    if caller.IsA('vtkMRMLCommandLineModuleNode'):
-      status = caller.GetStatusString()
-      if self.cli_running:
-        print('.'),
-        if not caller.IsBusy():
-          self.cli_done(status)
-      elif status == 'Running':
-        # CLI has started
-        self.cli_running = True
-
-  def cli_done(self, status):
-    print("Done")
-    self.cli_running = False
-    errorText = self.cliNode.GetErrorText()
-    if errorText != '':
-      errorText = str(errorText).replace('RadiomicsCLI standard error:\n\n', '')
-      print(errorText)
-
-    if status == 'Completed':  # Completed without errors
-      # Read the results out of the temp table and store them in the output table
-      self._processResults(self.cliNode.GetOutputText())
-
-    # Start the next extraction (when all extractions are done, this will clean up the CLI)
-    self._startCLI()
-
-  def onFinished(self):
-    self.logger.info('Cleaning up...')
-    # Dispose CLI node
-    slicer.mrmlScene.RemoveObserver(self.onStatusObserverTag)
-    self.cliNode = None
-    self.onStatusObserverTag = None
-
-    # Clean up!
-
-    # If a temporary parameter file was used, delete it.
-    if self.delete_parameterFile and os.path.isfile(self.parameterFile):
-      os.remove(self.parameterFile)
-    self.delete_parameterFile = False
-
-    self.imageNode = None
-    self.parameterFile = None
-    self.labelGenerators = None
-    self.outTable = None
-    self.featureNames = None
-
-    self.labelName = None
-
-    self.logger.debug('Cleanup finished')
-    # Signal the widget you're done
-    if self.callback is not None:
-      self.callback()
-
-    # Clean up the callback too
-    self.callback = None
-
-  def _getLabelGeneratorFromLabelMap(self, labelNode):
+  # Label generators to generate single ROI labels from either labelmapNode or segmentationNode input
+  def _getLabelGeneratorFromLabelMap(self, labelNode, imageNode):
     combinedLabelImage = sitk.ReadImage(sitkUtils.GetSlicerITKReadWriteAddress(labelNode.GetName()))
     combinedLabelArray = sitk.GetArrayFromImage(combinedLabelImage)
     labels = numpy.unique(combinedLabelArray)
@@ -567,9 +504,9 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
     for l in labels:
       if l == 0:
         continue
-      yield '%s_label_%d' % (labelNode.GetName(), l), labelNode, l
+      yield '%s_label_%d' % (labelNode.GetName(), l), labelNode, l, imageNode
 
-  def _getLabelGeneratorFromSegmentationNode(self, segmentationNode):
+  def _getLabelGeneratorFromSegmentationNode(self, segmentationNode, imageNode):
     import vtkSegmentationCorePython as vtkSegmentationCore
     segLogic = slicer.modules.segmentations.logic()
 
@@ -591,26 +528,27 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
       if not segmentLabelmapNode:
         self.logger.warning('no node')
         continue
-      yield '%s_segment_%s' % (segmentationNode.GetName(), segment.GetName()), segmentLabelmapNode, 1
+      yield '%s_segment_%s' % (segmentationNode.GetName(), segment.GetName()), segmentLabelmapNode, 1, imageNode
 
     displayNode = segmentLabelmapNode.GetDisplayNode()
     if displayNode:
       slicer.mrmlScene.RemoveNode(displayNode)
     slicer.mrmlScene.RemoveNode(segmentLabelmapNode)
 
+  # CLI interface functions for starting, observing progress and processing results
   def _startCLI(self, firstRun=False):
     try:
       # Get the next segmentation ROI
-      labelName, labelNode, label_idx = self.labelGenerators.next()
+      labelName, labelNode, label_idx, imageNode = self._labelGenerators.next()
 
       self.logger.info('Starting RadiomicsCLI for %s', labelName)
 
-      self.labelName = labelName
+      self._labelName = labelName
 
       parameters = {}
-      parameters['Image'] = self.imageNode.GetID()
+      parameters['Image'] = imageNode.GetID()
       parameters['Mask'] = labelNode.GetID()
-      parameters['param'] = self.parameterFile
+      parameters['param'] = self._parameterFile
       # parameters['out'] = None  # This causes the CLI to output the results to the std:out stream, which can be retrieved using GetOutputText()
       parameters['label'] = label_idx
 
@@ -620,18 +558,79 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
       self.cliNode = slicer.cli.run(RadiomicsCLI, self.cliNode, parameters, wait_for_completion=self.runSync)
 
       if self.runSync:
-        # process the result. If running asynchronously, this will function is called from onStatus (triggered by ModifiedEvent)
-        self.cli_done(self.cliNode.GetStatusString())
+        # process the result. If running asynchronously, this will function is called from _onStatus (triggered by ModifiedEvent)
+        self._cli_done(self.cliNode.GetStatusString())
       elif firstRun:
         # Observer is only needed when running in asynchronous mode
         # They only need to be added when the CLI is initialized and started for the first time
         self.logger.debug('Adding observer')
-        self.onStatusObserverTag = self.cliNode.AddObserver('ModifiedEvent', self.onStatus)
+        self._onStatusObserverTag = self.cliNode.AddObserver('ModifiedEvent', self._onStatus)
     except StopIteration:
       # finished extracting features
       self.logger.info("Extraction complete")
-      self.onFinished()
+      self._onFinished()
 
+  def _onStatus(self, caller, event):
+    if caller.IsA('vtkMRMLCommandLineModuleNode'):
+      status = caller.GetStatusString()
+      if self._cli_running:
+        print('.'),
+        if not caller.IsBusy():
+          self._cli_running = False
+          self._cli_done(status)
+      elif status == 'Running':
+        # CLI has started
+        self._cli_running = True
+
+  def _cli_done(self, status):
+    print("Done")
+    errorText = self.cliNode.GetErrorText()
+    if errorText != '':
+      errorText = str(errorText).replace('RadiomicsCLI standard error:\n\n', '')
+      print(errorText)
+
+    if status == 'Completed':  # Completed without errors
+      # Read the results out of the temp table and store them in the output table
+      self._processResults(self.cliNode.GetOutputText())
+
+    # Start the next extraction (when all extractions are done, this will clean up the CLI)
+    self._startCLI()
+
+  def _onFinished(self):
+    self.logger.info('Cleaning up...')
+
+    # Remove the observer if set
+    if self._onStatusObserverTag is not None:
+      slicer.mrmlScene.RemoveObserver(self._onStatusObserverTag)
+      self._onStatusObserverTag = None
+
+    # Dispose CLI node
+    self.cliNode = None
+
+    # Clean up!
+
+    # If a temporary parameter file was used, delete it.
+    if self._delete_parameterFile and os.path.isfile(self._parameterFile):
+      os.remove(self._parameterFile)
+    self._delete_parameterFile = False
+
+    self._imageNode = None
+    self._parameterFile = None
+    self._labelGenerators = None
+    self.outTable = None
+    self._featureNames = None
+
+    self._labelName = None
+
+    self.logger.debug('Cleanup finished')
+    # Signal the widget you're done
+    if self.callback is not None:
+      self.callback()
+
+    # Clean up the callback too
+    self.callback = None
+
+  # Output table functions: initializing the output table and filling it with processed results
   def _initOutputTable(self):
     if not self.outTable:
       self.logger.warning('Output table not set!')
@@ -667,10 +666,10 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
 
     tableWasModified = self.outTable.StartModify()
 
-    if self.featureNames is None:
-      self.featureNames = output[0].split(',')
+    if self._featureNames is None:
+      self._featureNames = output[0].split(',')
 
-      for featureKey in self.featureNames:
+      for featureKey in self._featureNames:
         processingType, featureClass, featureName = str(featureKey).split("_", 3)
         rowIndex = self.outTable.AddEmptyRow()
         self.outTable.SetCellText(rowIndex, 0, processingType)
@@ -678,13 +677,14 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
         self.outTable.SetCellText(rowIndex, 2, featureName)
 
     col = self.outTable.AddColumn()
-    col.SetName(self.labelName)
-    for feature_idx, featureKey in enumerate(self.featureNames):
+    col.SetName(self._labelName)
+    for feature_idx, featureKey in enumerate(self._featureNames):
       col.SetValue(feature_idx, features.get(featureKey, 'NaN'))
 
     self.outTable.Modified()
     self.outTable.EndModify(tableWasModified)
 
+  # Interaction functions
   def showTable(self, table):
     """
     Switch to a layout where tables are visible and show the selected one.
@@ -695,6 +695,21 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
     slicer.app.layoutManager().setLayout(layoutWithTable)
     slicer.app.applicationLogic().GetSelectionNode().SetReferenceActiveTableID(table.GetID())
     slicer.app.applicationLogic().PropagateTableSelection()
+
+  def hasImageData(self, volumeNode):
+    """This is an example logic method that
+    returns true if the passed in volume
+    node has valid image data
+    """
+    self.logger.debug('Checking if volume has image data')
+
+    if not volumeNode:
+      self.logger.debug('hasImageData failed: no volume node')
+      return False
+    if volumeNode.GetImageData() is None:
+      self.logger.debug('hasImageData failed: no image data in volume node')
+      return False
+    return True
 
   def runCLI(self, imageNode, labelNode, segmentationNode, tableNode, featureClasses, settings, enabledImageTypes, callback=None):
     """
@@ -713,13 +728,13 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
     json_configuration['imageType'] = enabledImageTypes
 
     tempDir = slicer.app.temporaryPath
-    self.parameterFile = os.path.join(tempDir, 'RadiomicsLogicParams.json')
-    self.delete_parameterFile = True  # Delete this file once we're done
+    parameterFile = os.path.join(tempDir, 'RadiomicsLogicParams.json')
+    self._delete_parameterFile = True  # Delete this file once we're done
 
-    with open(self.parameterFile, mode='w') as parameterFileFP:
+    with open(parameterFile, mode='w') as parameterFileFP:
       json.dump(json_configuration, parameterFileFP)
 
-    self.runCLIWithParameterFile(imageNode, labelNode, segmentationNode, tableNode, self.parameterFile, callback)
+    self.runCLIWithParameterFile(imageNode, labelNode, segmentationNode, tableNode, parameterFile, callback)
 
   def runCLIWithParameterFile(self, imageNode, labelNode, segmentationNode, tableNode, parameterFilePath, callback=None):
     """
@@ -739,14 +754,13 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
 
     self.logger.info('Feature extraction started')
 
-    self.parameterFile = parameterFilePath
-    self.imageNode = imageNode
+    self._parameterFile = parameterFilePath
 
-    self.labelGenerators = []
+    self._labelGenerators = []
     if labelNode:
-      self.labelGenerators = chain(self.labelGenerators, self._getLabelGeneratorFromLabelMap(labelNode))
+      self._labelGenerators = chain(self._labelGenerators, self._getLabelGeneratorFromLabelMap(labelNode, imageNode))
     if segmentationNode:
-      self.labelGenerators = chain(self.labelGenerators, self._getLabelGeneratorFromSegmentationNode(segmentationNode))
+      self._labelGenerators = chain(self._labelGenerators, self._getLabelGeneratorFromSegmentationNode(segmentationNode, imageNode))
 
     self.outTable = tableNode
     self._initOutputTable()
