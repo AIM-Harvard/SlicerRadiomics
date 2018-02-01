@@ -485,6 +485,9 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
 
     self.callback = None
 
+    # Set this to true to run synchronously (blocks UI thread until CLI is done)
+    self.runSync = False
+
   def hasImageData(self, volumeNode):
     """This is an example logic method that
     returns true if the passed in volume
@@ -506,22 +509,25 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
       if self.cli_running:
         print('.'),
         if not caller.IsBusy():
-          print("Done")
-          self.cli_running = False
-          errorText = caller.GetErrorText()
-          if errorText != '':
-            errorText = str(errorText).replace('RadiomicsCLI standard error:\n\n', '')
-            print(errorText)
-
-          if status == 'Completed':  # Completed without errors
-            # Read the results out of the temp table and store them in the output table
-            self._processResults(caller.GetOutputText())
-
-          # Start the next extraction (when all extractions are done, this will clean up the CLI)
-          self._startCLI()
+          self.cli_done(status)
       elif status == 'Running':
         # CLI has started
         self.cli_running = True
+
+  def cli_done(self, status):
+    print("Done")
+    self.cli_running = False
+    errorText = self.cliNode.GetErrorText()
+    if errorText != '':
+      errorText = str(errorText).replace('RadiomicsCLI standard error:\n\n', '')
+      print(errorText)
+
+    if status == 'Completed':  # Completed without errors
+      # Read the results out of the temp table and store them in the output table
+      self._processResults(self.cliNode.GetOutputText())
+
+    # Start the next extraction (when all extractions are done, this will clean up the CLI)
+    self._startCLI()
 
   def onFinished(self):
     self.logger.info('Cleaning up...')
@@ -610,19 +616,17 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
 
       RadiomicsCLI = slicer.modules.slicerradiomicscli
 
-      if firstRun:
-        # First time this logic is starting the CLI, therefore, it has to be set up.
-        self.logger.debug('Starting (1st time)...')
-        self.cliNode = slicer.cli.run(RadiomicsCLI, None, parameters)
+      self.logger.debug('Starting...')
+      self.cliNode = slicer.cli.run(RadiomicsCLI, self.cliNode, parameters, wait_for_completion=self.runSync)
 
+      if self.runSync:
+        # process the result. If running asynchronously, this will function is called from onStatus (triggered by ModifiedEvent)
+        self.cli_done(self.cliNode.GetStatusString())
+      elif firstRun:
+        # Observer is only needed when running in asynchronous mode
+        # They only need to be added when the CLI is initialized and started for the first time
         self.logger.debug('Adding observer')
         self.onStatusObserverTag = self.cliNode.AddObserver('ModifiedEvent', self.onStatus)
-      else:
-        # On subsequent runs, only the Mask (labelNode) and label (label value) change
-        # Reuse the cliNode by passing it as an argument to slicer.cli.run
-        self.logger.debug('Starting...')
-        slicer.cli.run(RadiomicsCLI, self.cliNode, parameters)
-
     except StopIteration:
       # finished extracting features
       self.logger.info("Extraction complete")
@@ -696,7 +700,7 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
     """
     Run the actual algorithm
     """
-    if self.cli_running:
+    if self.cliNode is not None:
       self.logger.warning('Already running an extraction!')
       return
 
@@ -729,7 +733,7 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
     :param parameterFilePath: String file path pointing to the parameter file used to customize the extraction
     :param callback: Function which is invoked when the CLI is done (can be used to unlock the GUI)
     """
-    if self.cli_running:
+    if self.cliNode is not None:
       self.logger.warning('Already running an extraction!')
       return
 
@@ -764,7 +768,6 @@ class SlicerRadiomicsTest(ScriptedLoadableModuleTest):
     """ Do whatever is needed to reset the state - typically a scene clear will be enough.
     """
     self.logger = logging.getLogger('radiomics.slicer')
-    self.is_running = False
 
     slicer.mrmlScene.Clear(0)
 
@@ -773,9 +776,6 @@ class SlicerRadiomicsTest(ScriptedLoadableModuleTest):
     """
     self.setUp()
     self.test_SlicerRadiomics1()
-
-  def onFinished(self):
-    self.is_running = False
 
   def test_SlicerRadiomics1(self):
     """ Ideally you should have several levels of tests.  At the lowest level
@@ -825,6 +825,7 @@ class SlicerRadiomicsTest(ScriptedLoadableModuleTest):
     parameterFile = os.path.join(slicer.app.temporaryPath, 'Params.yaml')
 
     logic = SlicerRadiomicsLogic()
+    logic.runSync = True  # Block Thread until each extraction is done (i.e. run synchronously)
     self.assertIsNotNone(logic.hasImageData(grayscaleNode))
     self.assertIsNotNone(logic.hasImageData(labelmapNode))
 
@@ -841,19 +842,14 @@ class SlicerRadiomicsTest(ScriptedLoadableModuleTest):
       tableNode = slicer.vtkMRMLTableNode()
       tableNode.SetName('lung1_label and ' + segNode.GetName())
       slicer.mrmlScene.AddNode(tableNode)
-      logic.runCLI(grayscaleNode, labelmapNode, segNode, tableNode, featureClasses, settings, enabledImageTypes, self.onFinished)
-      self.is_running = True
+      # No callback needed as tests are run synchronously
+      logic.runCLI(grayscaleNode, labelmapNode, segNode, tableNode, featureClasses, settings, enabledImageTypes)
       logic.showTable(tableNode)
-      while self.is_running:  # Wait until the CLI is done
-        pass
 
     tableNode = slicer.vtkMRMLTableNode()
     tableNode.SetName('lung1_label and ' + binaryNode.GetName() + ' customized with Params.yaml')
     slicer.mrmlScene.AddNode(tableNode)
-    logic.runCLIWithParameterFile(grayscaleNode, labelmapNode, binaryNode, tableNode, parameterFile, self.onFinished)
-    self.is_running = True
+    # No callback needed as tests are run synchronously
+    logic.runCLIWithParameterFile(grayscaleNode, labelmapNode, binaryNode, tableNode, parameterFile)
     logic.showTable(tableNode)
-    while self.is_running:  # Wait until the CLI is done
-      pass
-
     self.delayDisplay('Test passed!')
