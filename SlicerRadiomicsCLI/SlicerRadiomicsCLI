@@ -1,15 +1,7 @@
-#!/usr/bin/env python-real
-# -*- coding: utf-8 -*-
+#!/usr/bin/env sh
+python_interpreter=`which /usr/bin/env python-real`
+if [ -z "$python_interpreter" ]; then
+  python_interpreter=`which /usr/bin/env python`
+fi
 
-import sys
-
-from radiomics.scripts import commandline
-
-if __name__ == '__main__':
-  if sys.argv[1] == '--xml' or sys.argv[1] == '-x':
-    with open(__file__ + '.xml', 'r') as xmlFP:
-      print(xmlFP.read())
-  else:
-    sys.argv.append('--format=csv')  # Append this format to ensure a csv return format (default is txt)
-    sys.argv.append('--verbosity=4')  # Print out logging with level INFO and higher
-    commandline.main()  # Entry point for the "pyradiomics" script
+$python_interpreter "$0Script" "$*"

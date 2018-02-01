@@ -77,15 +77,15 @@ function(SlicerRadiomicsAddCLI)
     endif()
   endforeach()
 
-  set(cli_script "${MY_NAME}")
-
   set(cli_files
     "${MY_NAME}.xml"
+    "${MY_NAME}Script"
     )
+
   if(WIN32)
-    list(APPEND cli_files
-      "${MY_NAME}.bat"
-      )
+    set(cli_script "${MY_NAME}.bat")
+  else()
+    set(cli_script "${MY_NAME}")
   endif()
 
   set(build_dir ${SlicerExecutionModel_DEFAULT_CLI_RUNTIME_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR})
@@ -107,7 +107,7 @@ function(SlicerRadiomicsAddCLI)
     )
 
   if(NOT WIN32)
-    add_custom_target(SetPermissions${MY_NAME}Script ALL
+    add_custom_target(SetPermissions${MY_NAME}ShellScript ALL
       COMMAND chmod u+x ${build_dir}/${MY_NAME}
       WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
       COMMENT "Setting Executable (User) permission for ${MY_NAME} in build directory"
