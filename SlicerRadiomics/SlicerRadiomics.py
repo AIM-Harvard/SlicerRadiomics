@@ -295,8 +295,8 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
 
     parameterCustomizationFormLayout = qt.QFormLayout(self.parameterCustomizationGroupBox)
 
-    # Pathe edit to select parameter file
-    self.parameterFilePathLineEdit = ctk.ctkPathLineEdit(filters=ctk.ctkPathLineEdit.Files)
+    # Path edit to select parameter file
+    self.parameterFilePathLineEdit = ctk.ctkPathLineEdit()
     parameterCustomizationFormLayout.addRow("Parameter File", self.parameterFilePathLineEdit)
 
   def _addOutputSection(self):
