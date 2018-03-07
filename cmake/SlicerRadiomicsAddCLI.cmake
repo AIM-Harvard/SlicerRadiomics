@@ -106,14 +106,6 @@ function(SlicerRadiomicsAddCLI)
     COMMENT "Copying ${MY_NAME} files into build directory"
     )
 
-  if(NOT WIN32)
-    add_custom_target(SetPermissions${MY_NAME}ShellScript ALL
-      COMMAND chmod u+x ${build_dir}/${MY_NAME}
-      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-      COMMENT "Setting Executable (User) permission for ${MY_NAME} in build directory"
-      )
-  endif()
-
   install(FILES ${cli_files}
     DESTINATION ${SlicerExecutionModel_DEFAULT_CLI_INSTALL_RUNTIME_DESTINATION}
     COMPONENT RuntimeLibraries
@@ -123,5 +115,14 @@ function(SlicerRadiomicsAddCLI)
     DESTINATION ${SlicerExecutionModel_DEFAULT_CLI_INSTALL_RUNTIME_DESTINATION}
     COMPONENT RuntimeLibraries
     )
+
+  if(NOT WIN32)
+    add_custom_target(SetPermissions${MY_NAME}ShellScript ALL
+      COMMAND chmod u+x ${build_dir}/${MY_NAME}
+      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+      COMMENT "Setting Executable (User) permission for ${MY_NAME} in build directory"
+      DEPENDS Copy${MY_NAME}Scripts
+    )
+  endif()
 
 endfunction()
