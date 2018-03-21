@@ -3,13 +3,13 @@
 
 import sys
 
-from radiomics.scripts import commandline
+from radiomics.scripts import parse_args
 
 if __name__ == '__main__':
   if sys.argv[1] == '--xml' or sys.argv[1] == '-x':
-    with open(__file__ + '.xml', 'r') as xmlFP:
+    with open(__file__[:-6] + '.xml', 'r') as xmlFP:  # Cut off "Script" from filename
       print(xmlFP.read())
   else:
     sys.argv.append('--format=csv')  # Append this format to ensure a csv return format (default is txt)
     sys.argv.append('--verbosity=4')  # Print out logging with level INFO and higher
-    commandline.main()  # Entry point for the "pyradiomics" script
+    parse_args()  # Entry point for the "pyradiomics" script

@@ -668,6 +668,10 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
 
     if self._featureNames is None:
       self._featureNames = output[0].split(',')
+      if 'Image' in self._featureNames:
+        self._featureNames.remove('Image')
+      if 'Mask' in self._featureNames:
+        self._featureNames.remove('Mask')
 
       for featureKey in self._featureNames:
         processingType, featureClass, featureName = str(featureKey).split("_", 3)
