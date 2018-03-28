@@ -668,17 +668,18 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
 
     if self._featureNames is None:
       self._featureNames = output[0].split(',')
-      if 'Image' in self._featureNames:
-        self._featureNames.remove('Image')
-      if 'Mask' in self._featureNames:
-        self._featureNames.remove('Mask')
 
       for featureKey in self._featureNames:
-        processingType, featureClass, featureName = str(featureKey).split("_", 3)
+        keys = str(featureKey).split("_")
+        if len(keys) < 3:
+          if featureKey != 'Image' and featureKey != 'Mask':
+            self.logger.warning('Skipping key %s', featureKey)
+          continue
+
         rowIndex = self.outTable.AddEmptyRow()
-        self.outTable.SetCellText(rowIndex, 0, processingType)
-        self.outTable.SetCellText(rowIndex, 1, featureClass)
-        self.outTable.SetCellText(rowIndex, 2, featureName)
+        self.outTable.SetCellText(rowIndex, 0, keys[0])
+        self.outTable.SetCellText(rowIndex, 1, keys[1])
+        self.outTable.SetCellText(rowIndex, 2, keys[2])
 
     col = self.outTable.AddColumn()
     col.SetName(self._labelName)
