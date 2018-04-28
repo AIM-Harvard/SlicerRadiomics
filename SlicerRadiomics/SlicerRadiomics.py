@@ -665,15 +665,17 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
     features = outputReader.next()
 
     tableWasModified = self.outTable.StartModify()
-
+    imageKeys = ['Image', 'Mask']
+    skipKeys = []
     if self._featureNames is None:
       self._featureNames = output[0].split(',')
 
       for featureKey in self._featureNames:
         keys = str(featureKey).split("_")
         if len(keys) < 3:
-          if featureKey != 'Image' and featureKey != 'Mask':
-            self.logger.warning('Skipping key %s', featureKey)
+          if featureKey not in imageKeys:
+            self.logger.warning('Skipping key ill-formed non-image key %s', featureKey)
+          skipKeys.append(featureKey)
           continue
 
         rowIndex = self.outTable.AddEmptyRow()
@@ -683,8 +685,12 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
 
     col = self.outTable.AddColumn()
     col.SetName(self._labelName)
+    keysSkippedSoFar = 0
     for feature_idx, featureKey in enumerate(self._featureNames):
-      col.SetValue(feature_idx, features.get(featureKey, 'NaN'))
+      if featureKey in skipKeys:
+        keysSkippedSoFar += 1
+      else:
+        col.SetValue(feature_idx - keysSkippedSoFar, features.get(featureKey, 'NaN'))
 
     self.outTable.Modified()
     self.outTable.EndModify(tableWasModified)
