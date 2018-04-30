@@ -32,7 +32,7 @@
       <description><![CDATA[YAML or JSON structured file defining the customization that is to be applied.]]></description>
     </file>
     <integer>
-      <longflag alias="l">label</longflag>
+      <longflag>label</longflag>
       <label>ROI label value</label>
       <minimum>1</minimum>
       <maximum>255</maximum>
