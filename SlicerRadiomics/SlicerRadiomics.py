@@ -488,6 +488,10 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
     # This is set on the first time results are returned and used to fill the table for subsequent results
     self._featureNames = None
 
+    # Some feature names are not valid keys, so they need to be skipped when iterating
+    # through the list.  This list of keys to skip is populated when _featureNames is created
+    self._skipKeys = []
+
     # If set, this function will be called upon completion of extraction
     # Once per call to runCLI or runCLIWithParameterFile
     self.callback = None
@@ -666,7 +670,6 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
 
     tableWasModified = self.outTable.StartModify()
     imageKeys = ['Image', 'Mask']
-    skipKeys = []
     if self._featureNames is None:
       self._featureNames = output[0].split(',')
 
@@ -675,7 +678,7 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
         if len(keys) < 3:
           if featureKey not in imageKeys:
             self.logger.warning('Skipping key ill-formed non-image key %s', featureKey)
-          skipKeys.append(featureKey)
+          self._skipKeys.append(featureKey)
           continue
 
         rowIndex = self.outTable.AddEmptyRow()
@@ -687,7 +690,7 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
     col.SetName(self._labelName)
     keysSkippedSoFar = 0
     for feature_idx, featureKey in enumerate(self._featureNames):
-      if featureKey in skipKeys:
+      if featureKey in self._skipKeys:
         keysSkippedSoFar += 1
       else:
         col.SetValue(feature_idx - keysSkippedSoFar, features.get(featureKey, 'NaN'))
