@@ -77,25 +77,16 @@ function(SlicerRadiomicsAddCLI)
     endif()
   endforeach()
 
-  set(cli_files
-    "${MY_NAME}.xml"
-    "${MY_NAME}Script"
-    )
+  set(cli_file "${MY_NAME}.xml" )
 
-  if(WIN32)
-    set(cli_script "${MY_NAME}.bat")
-  else()
-    set(cli_script "${MY_NAME}")
-  endif()
+  set(cli_script "${MY_NAME}.py")
 
   set(build_dir ${SlicerExecutionModel_DEFAULT_CLI_RUNTIME_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR})
   set(copy_commands )
-  foreach(cli_file IN LISTS cli_files)
-    list(APPEND copy_commands
+
+  list(APPEND copy_commands
       COMMAND ${CMAKE_COMMAND} -E copy_if_different ${cli_file} ${build_dir}/${cli_file}
       )
-  endforeach()
-
   list(APPEND copy_commands
     COMMAND ${CMAKE_COMMAND} -E copy_if_different ${cli_script} ${build_dir}/${cli_script}
     )
@@ -106,7 +97,7 @@ function(SlicerRadiomicsAddCLI)
     COMMENT "Copying ${MY_NAME} files into build directory"
     )
 
-  install(FILES ${cli_files}
+  install(FILES ${cli_file}
     DESTINATION ${SlicerExecutionModel_DEFAULT_CLI_INSTALL_RUNTIME_DESTINATION}
     COMPONENT RuntimeLibraries
     )
@@ -117,10 +108,10 @@ function(SlicerRadiomicsAddCLI)
     )
 
   if(NOT WIN32)
-    add_custom_target(SetPermissions${MY_NAME}ShellScript ALL
-      COMMAND chmod u+x ${build_dir}/${MY_NAME}
+    add_custom_target(SetPermissions${MY_NAME}CLI ALL
+      COMMAND chmod u+x ${build_dir}/${cli_script}
       WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-      COMMENT "Setting Executable (User) permission for ${MY_NAME} in build directory"
+      COMMENT "Setting Executable (User) permission for ${cli_script} in build directory"
       DEPENDS Copy${MY_NAME}Scripts
     )
   endif()

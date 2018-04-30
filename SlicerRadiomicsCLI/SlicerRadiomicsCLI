@@ -1,7 +1,0 @@
-#!/usr/bin/env sh
-python_interpreter=`which python-real`
-if [ -z "$python_interpreter" ]; then
-  python_interpreter=`which python`
-fi
-
-$python_interpreter "$0Script" $*
