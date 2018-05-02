@@ -443,6 +443,14 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
     logic.showTable(self.outputTableSelector.currentNode())
 
   def onFinished(self):
+    # Column containing the applied settings usually has a very long value, causing the width of that column to be very large
+    # Therefore, resize all columns that have size > 200
+    lm = slicer.app.layoutManager()
+    for i in range(lm.tableViewCount):
+      tv_header = lm.tableWidget(i).tableView().horizontalHeader()  # .setSectionResizeMode(qt.QHeaderView.Interactive)
+      for j in range(tv_header.count()):
+        if tv_header.sectionSize(j) > 200:
+          tv_header.resizeSection(j, 200)
     # Unlock GUI
     self.applyButton.setEnabled(True)
     self.applyButton.text = 'Apply'
