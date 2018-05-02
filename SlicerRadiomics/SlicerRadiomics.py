@@ -480,13 +480,14 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
     self._labelGenerators = None
     self._parameterFile = None
     self._labelName = None
+    self._cli_output = None  # Temporary table to hold the results of the CLI script
 
     # If manual customization is used, a temporary parameter file will be generated. However, this must also be deleted upon completion
     self._delete_parameterFile = False
 
     # Variable to hold the calculated feature names
     # This is set on the first time results are returned and used to fill the table for subsequent results
-    self._featureNames = None
+    self._featureNames = {}
 
     # If set, this function will be called upon completion of extraction
     # Once per call to runCLI or runCLIWithParameterFile
@@ -549,7 +550,7 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
       parameters['Image'] = imageNode.GetID()
       parameters['Mask'] = labelNode.GetID()
       parameters['param'] = self._parameterFile
-      # parameters['out'] = None  # This causes the CLI to output the results to the std:out stream, which can be retrieved using GetOutputText()
+      parameters['out'] = self._cli_output.GetID()
       parameters['label'] = label_idx
 
       RadiomicsCLI = slicer.modules.slicerradiomicscli
@@ -618,7 +619,11 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
     self._parameterFile = None
     self._labelGenerators = None
     self.outTable = None
-    self._featureNames = None
+    self._featureNames = {}
+
+    # Remove the temporary table
+    slicer.mrmlScene.RemoveNode(self._cli_output)
+    self._cli_output = None
 
     self._labelName = None
 
@@ -654,37 +659,37 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
     if not self.outTable:
       self.logger.warning('Output table not set!')
       return
-
-    output = str(outputText).replace('\r', '').split('\n')[-3:-1]
-
-    if len(output) < 2:
-      self.logger.warning('Output parsing failed!')
-
-    # Use a csv reader object to correctly handle commas inside values (e.g. in general_info_GeneralSettings)
-    outputReader = csv.DictReader(output)
-    features = outputReader.next()
+    if not self._cli_output:
+      self.logger.warning('CLI output table not set!')
+      return
 
     tableWasModified = self.outTable.StartModify()
-
-    if self._featureNames is None:
-      self._featureNames = output[0].split(',')
-
-      for featureKey in self._featureNames:
-        keys = str(featureKey).split("_")
-        if len(keys) < 3:
-          if featureKey != 'Image' and featureKey != 'Mask':
-            self.logger.warning('Skipping key %s', featureKey)
-          continue
-
-        rowIndex = self.outTable.AddEmptyRow()
-        self.outTable.SetCellText(rowIndex, 0, keys[0])
-        self.outTable.SetCellText(rowIndex, 1, keys[1])
-        self.outTable.SetCellText(rowIndex, 2, keys[2])
-
+    self.logger.debug('adding column')
     col = self.outTable.AddColumn()
     col.SetName(self._labelName)
-    for feature_idx, featureKey in enumerate(self._featureNames):
-      col.SetValue(feature_idx, features.get(featureKey, 'NaN'))
+
+    for columnIndex in range(self._cli_output.GetNumberOfColumns()):
+      featureKey = self._cli_output.GetColumnName(columnIndex)
+      featureValue = self._cli_output.GetCellText(0, columnIndex)
+
+      key_parts = featureKey.split('_', 3)
+      if len(key_parts) < 3:
+        # We expect keys Image and Mask to be in there, and are skipped
+        # However, we need not warn the user about this as it is expected...
+        if featureKey != 'Image' and featureKey != 'Mask':
+          self.logger.warning('Skipping key %s', featureKey)
+        continue
+
+      if featureKey not in self._featureNames:
+        self.logger.debug('Adding featurekey %s', featureKey)
+        rowIndex = self.outTable.AddEmptyRow()
+        self.outTable.SetCellText(rowIndex, 0, key_parts[0])
+        self.outTable.SetCellText(rowIndex, 1, key_parts[1])
+        self.outTable.SetCellText(rowIndex, 2, key_parts[2])
+        self._featureNames[featureKey] = rowIndex
+
+      self.logger.debug('Setting column value to %s (key %s) at row %i', featureValue, featureKey, self._featureNames[featureKey])
+      col.SetValue(self._featureNames[featureKey], featureValue)
 
     self.outTable.Modified()
     self.outTable.EndModify(tableWasModified)
@@ -766,6 +771,9 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
       self._labelGenerators = chain(self._labelGenerators, self._getLabelGeneratorFromLabelMap(labelNode, imageNode))
     if segmentationNode:
       self._labelGenerators = chain(self._labelGenerators, self._getLabelGeneratorFromSegmentationNode(segmentationNode, imageNode))
+
+    self._cli_output = slicer.vtkMRMLTableNode()
+    slicer.mrmlScene.AddNode(self._cli_output)
 
     self.outTable = tableNode
     self._initOutputTable()
