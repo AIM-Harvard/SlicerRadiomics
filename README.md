@@ -1,9 +1,10 @@
 # About
 
 SlicerRadiomics is an extension for [3D Slicer](http://slicer.org) that
-encapsulates [pyradiomics](https://github.com/radiomics/pyradiomics) library,
-which in turn implements calculation of a variety of
+encapsulates [pyradiomics](https://github.com/radiomics/pyradiomics) library that calculates a variety of
 [radiomics](http://radiomics.github.io) features.
+
+See list and detailed description of computed features in **[pyradiomics library documentation](http://pyradiomics.readthedocs.io/en/latest/features.html)**.
 
 # Install instructions
 
