@@ -84,7 +84,6 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
     # Input Section
     self.inputVolumeSelector.connect('currentNodeChanged(vtkMRMLNode*)', self.onSelect)
     self.inputMaskSelector.connect('currentNodeChanged(vtkMRMLNode*)', self.onSelect)
-    self.inputSegmentationSelector.connect('currentNodeChanged(vtkMRMLNode*)', self.onSelect)
 
     # Customization Section
     self.manualCustomizationRadioButton.connect('toggled(bool)', self.onCustomizationTypeCheckedChanged)
@@ -130,7 +129,7 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
     # input mask volume selector
     #
     self.inputMaskSelector = slicer.qMRMLNodeComboBox()
-    self.inputMaskSelector.nodeTypes = ['vtkMRMLLabelMapVolumeNode']
+    self.inputMaskSelector.nodeTypes = ['vtkMRMLLabelMapVolumeNode', 'vtkMRMLSegmentationNode']
     self.inputMaskSelector.selectNodeUponCreation = True
     self.inputMaskSelector.addEnabled = False
     self.inputMaskSelector.removeEnabled = False
@@ -138,23 +137,8 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
     self.inputMaskSelector.showHidden = False
     self.inputMaskSelector.showChildNodeTypes = False
     self.inputMaskSelector.setMRMLScene(slicer.mrmlScene)
-    self.inputMaskSelector.setToolTip('Pick the input mask for the feature calculation.')
-    inputVolumeFormLayout.addRow('Input LabelMap: ', self.inputMaskSelector)
-
-    #
-    # input segmentation selector
-    #
-    self.inputSegmentationSelector = slicer.qMRMLNodeComboBox()
-    self.inputSegmentationSelector.nodeTypes = ['vtkMRMLSegmentationNode']
-    self.inputSegmentationSelector.selectNodeUponCreation = True
-    self.inputSegmentationSelector.addEnabled = False
-    self.inputSegmentationSelector.removeEnabled = False
-    self.inputSegmentationSelector.noneEnabled = True
-    self.inputSegmentationSelector.showHidden = False
-    self.inputSegmentationSelector.showChildNodeTypes = False
-    self.inputSegmentationSelector.setMRMLScene(slicer.mrmlScene)
-    self.inputSegmentationSelector.setToolTip('Pick the input segmentation for the feature calculation.')
-    inputVolumeFormLayout.addRow('Input Segmentation: ', self.inputSegmentationSelector)
+    self.inputMaskSelector.setToolTip('Pick the regions for feature calculation - defined by a segmentation or labelmap volume node.')
+    inputVolumeFormLayout.addRow('Input regions: ', self.inputMaskSelector)
 
   def _addCustomizationSection(self):
     customizationCollapsibleButton = ctk.ctkCollapsibleButton()
@@ -332,8 +316,7 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
   def onSelect(self):
     self.applyButton.enabled = (
       self.inputVolumeSelector.currentNode()  # Input volume selected
-      and (self.inputMaskSelector.currentNode()  # Some form of segmentation selected
-           or self.inputSegmentationSelector.currentNode())
+      and self.inputMaskSelector.currentNode()  # Mask labelmap or segmentation selected
       and (self.manualCustomizationRadioButton.checked  # Customization defined
            or os.path.isfile(self.parameterFilePathLineEdit.currentPath))
     )
@@ -378,8 +361,7 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
     slicer.app.processEvents()
 
     imageNode = self.inputVolumeSelector.currentNode()
-    labelNode = self.inputMaskSelector.currentNode()
-    segmentationNode = self.inputSegmentationSelector.currentNode()
+    maskNode = self.inputMaskSelector.currentNode()
 
     if self.manualCustomizationRadioButton.checked:
       # Set up customization
@@ -415,8 +397,7 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
       # Compute features
       try:
         logic.runCLI(imageNode,
-                     labelNode,
-                     segmentationNode,
+                     maskNode,
                      self.outputTableSelector.currentNode(),
                      featureClasses,
                      settings,
@@ -431,8 +412,7 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
       try:
         parameterFile = self.parameterFilePathLineEdit.currentPath
         logic.runCLIWithParameterFile(imageNode,
-                                      labelNode,
-                                      segmentationNode,
+                                      maskNode,
                                       self.outputTableSelector.currentNode(),
                                       parameterFile,
                                       self.onFinished)
@@ -729,7 +709,7 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
       return False
     return True
 
-  def runCLI(self, imageNode, labelNode, segmentationNode, tableNode, featureClasses, settings, enabledImageTypes, callback=None):
+  def runCLI(self, imageNode, maskNode, tableNode, featureClasses, settings, enabledImageTypes, callback=None):
     """
     Run the actual algorithm
     """
@@ -752,16 +732,15 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
     with open(parameterFile, mode='w') as parameterFileFP:
       json.dump(json_configuration, parameterFileFP)
 
-    self.runCLIWithParameterFile(imageNode, labelNode, segmentationNode, tableNode, parameterFile, callback)
+    self.runCLIWithParameterFile(imageNode, maskNode, tableNode, parameterFile, callback)
 
-  def runCLIWithParameterFile(self, imageNode, labelNode, segmentationNode, tableNode, parameterFilePath, callback=None):
+  def runCLIWithParameterFile(self, imageNode, maskNode, tableNode, parameterFilePath, callback=None):
     """
     Run the actual algorithm using the provided customization file and provided image and region of interest(s) (ROIs)
 
     :param imageNode: Slicer Volume node representing the image from which features should be extracted
     :param labelNode: Slicer Labelmap node containing the ROIs as integer encoded volume (voxel value indicates ROI id)
-    :param segmentationNode: Slicer segmentation node containing the segments of the ROIs (will be converted to binary
-    label maps)
+    or a segmentation node containing the segments of the ROIs (will be converted to binary label maps)
     :param tableNode: Slicer Table node which will hold the calculated results
     :param parameterFilePath: String file path pointing to the parameter file used to customize the extraction
     :param callback: Function which is invoked when the CLI is done (can be used to unlock the GUI)
@@ -775,10 +754,13 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
     self._parameterFile = parameterFilePath
 
     self._labelGenerators = []
-    if labelNode:
-      self._labelGenerators = chain(self._labelGenerators, self._getLabelGeneratorFromLabelMap(labelNode, imageNode))
-    if segmentationNode:
-      self._labelGenerators = chain(self._labelGenerators, self._getLabelGeneratorFromSegmentationNode(segmentationNode, imageNode))
+    if maskNode.IsA('vtkMRMLVolumeNode'):
+      self._labelGenerators = chain(self._labelGenerators, self._getLabelGeneratorFromLabelMap(maskNode, imageNode))
+    elif maskNode.IsA('vtkMRMLSegmentationNode'):
+      self._labelGenerators = chain(self._labelGenerators, self._getLabelGeneratorFromSegmentationNode(maskNode, imageNode))
+    else:
+      self.logger.error('Invalid maskNode')
+      return
 
     self._cli_output = slicer.vtkMRMLTableNode()
     slicer.mrmlScene.AddNode(self._cli_output)
@@ -873,18 +855,20 @@ class SlicerRadiomicsTest(ScriptedLoadableModuleTest):
 
     enabledImageTypes = {"Original": {}}
 
-    for segNode in [binaryNode, surfaceNode]:
+    for maskNode in [labelmapNode, binaryNode, surfaceNode]:
       tableNode = slicer.vtkMRMLTableNode()
-      tableNode.SetName('lung1_label and ' + segNode.GetName())
+      tableNode.SetName('lung1_label and ' + maskNode.GetName())
       slicer.mrmlScene.AddNode(tableNode)
       # No callback needed as tests are run synchronously
-      logic.runCLI(grayscaleNode, labelmapNode, segNode, tableNode, featureClasses, settings, enabledImageTypes)
+      logic.runCLI(grayscaleNode, maskNode, tableNode, featureClasses, settings, enabledImageTypes)
       logic.showTable(tableNode)
 
-    tableNode = slicer.vtkMRMLTableNode()
-    tableNode.SetName('lung1_label and ' + binaryNode.GetName() + ' customized with Params.yaml')
-    slicer.mrmlScene.AddNode(tableNode)
-    # No callback needed as tests are run synchronously
-    logic.runCLIWithParameterFile(grayscaleNode, labelmapNode, binaryNode, tableNode, parameterFile)
-    logic.showTable(tableNode)
+    for maskNode in [labelmapNode, binaryNode, surfaceNode]:
+      tableNode = slicer.vtkMRMLTableNode()
+      tableNode.SetName('lung1_label and ' + maskNode.GetName() + ' customized with Params.yaml')
+      slicer.mrmlScene.AddNode(tableNode)
+      # No callback needed as tests are run synchronously
+      logic.runCLIWithParameterFile(grayscaleNode, maskNode, tableNode, parameterFile)
+      logic.showTable(tableNode)
+
     self.delayDisplay('Test passed!')
