@@ -57,7 +57,7 @@ if(NOT ${CMAKE_PROJECT_NAME}_USE_SYSTEM_${proj})
         --prefix ${python_packages_DIR_NATIVE_DIR}
       )
     # Build "PyWavelets" from source to ensure it can be imported
-    set(_no_binary --no-binary "PyWavelets")
+    set(_no_binary --no-binary "PyWavelets==1.0.0")
   endif()
 
   # Install pyradiomics and its requirement
