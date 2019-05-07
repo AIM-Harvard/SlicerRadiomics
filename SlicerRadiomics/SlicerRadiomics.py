@@ -528,7 +528,7 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
   def _startCLI(self, firstRun=False):
     try:
       # Get the next segmentation ROI
-      labelName, labelNode, label_idx, imageNode = self._labelGenerators.next()
+      labelName, labelNode, label_idx, imageNode = self._labelGenerators.__next__()
 
       self.logger.info('Starting RadiomicsCLI for %s', labelName)
 
