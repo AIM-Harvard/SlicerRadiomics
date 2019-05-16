@@ -570,7 +570,7 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
     if caller.IsA('vtkMRMLCommandLineModuleNode'):
       status = caller.GetStatusString()
       if self._cli_running:
-        print('.'),
+        print('.', end='')
         if not caller.IsBusy():
           self._cli_running = False
           self._cli_done(status)
