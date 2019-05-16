@@ -1,4 +1,3 @@
-import csv
 from itertools import chain
 import json
 import os
@@ -137,7 +136,8 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
     self.inputMaskSelector.showHidden = False
     self.inputMaskSelector.showChildNodeTypes = False
     self.inputMaskSelector.setMRMLScene(slicer.mrmlScene)
-    self.inputMaskSelector.setToolTip('Pick the regions for feature calculation - defined by a segmentation or labelmap volume node.')
+    self.inputMaskSelector.setToolTip('Pick the regions for feature calculation - '
+                                      'defined by a segmentation or labelmap volume node.')
     inputVolumeFormLayout.addRow('Input regions: ', self.inputMaskSelector)
 
   def _addCustomizationSection(self):
@@ -366,9 +366,10 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
     if self.manualCustomizationRadioButton.checked:
       # Set up customization
       featureClasses = self.getCheckedFeatureClasses()
-      settings = {}
-      settings['binWidth'] = self.binWidthSliderWidget.value
-      settings['symmetricalGLCM'] = self.symmetricalGLCMCheckBox.checked
+      settings = {
+        'binWidth': self.binWidthSliderWidget.value,
+        'symmetricalGLCM': self.symmetricalGLCMCheckBox.checked
+      }
 
       enabledImageTypes = {'Original': {}}
 
@@ -423,7 +424,8 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
     logic.showTable(self.outputTableSelector.currentNode())
 
   def onFinished(self):
-    # Column containing the applied settings usually has a very long value, causing the width of that column to be very large
+    # Column containing the applied settings usually has a very long value,
+    # causing the width of that column to be very large
     # Therefore, resize all columns that have size > 200
     lm = slicer.app.layoutManager()
     for i in range(lm.tableViewCount):
@@ -470,7 +472,8 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
     self._labelName = None
     self._cli_output = None  # Temporary table to hold the results of the CLI script
 
-    # If manual customization is used, a temporary parameter file will be generated. However, this must also be deleted upon completion
+    # If manual customization is used, a temporary parameter file will be generated.
+    # However, this must also be deleted upon completion
     self._delete_parameterFile = False
 
     # Variable to hold the calculated feature names
@@ -485,22 +488,24 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
     self.runSync = False
 
   # Label generators to generate single ROI labels from either labelmapNode or segmentationNode input
-  def _getLabelGeneratorFromLabelMap(self, labelNode, imageNode):
+  @staticmethod
+  def _getLabelGeneratorFromLabelMap(labelNode, imageNode):
     combinedLabelImage = sitk.ReadImage(sitkUtils.GetSlicerITKReadWriteAddress(labelNode.GetName()))
     combinedLabelArray = sitk.GetArrayFromImage(combinedLabelImage)
     labels = numpy.unique(combinedLabelArray)
 
-    for l in labels:
-      if l == 0:
+    for label in labels:
+      if label == 0:
         continue
-      yield '%s_label_%d' % (labelNode.GetName(), l), labelNode, int(l), imageNode
+      yield '%s_label_%d' % (labelNode.GetName(), label), labelNode, int(label), imageNode
 
   def _getLabelGeneratorFromSegmentationNode(self, segmentationNode, imageNode):
     import vtkSegmentationCorePython as vtkSegmentationCore
     segLogic = slicer.modules.segmentations.logic()
 
     segmentation = segmentationNode.GetSegmentation()
-    binaryRepresentationDef = vtkSegmentationCore.vtkSegmentationConverter.GetSegmentationBinaryLabelmapRepresentationName()
+    binaryRepresentationDef = \
+        vtkSegmentationCore.vtkSegmentationConverter.GetSegmentationBinaryLabelmapRepresentationName()
     if not segmentation.ContainsRepresentation(binaryRepresentationDef):
       segmentation.CreateRepresentation(binaryRepresentationDef)
 
@@ -534,12 +539,13 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
 
       self._labelName = labelName
 
-      parameters = {}
-      parameters['Image'] = imageNode.GetID()
-      parameters['Mask'] = labelNode.GetID()
-      parameters['param'] = self._parameterFile
-      parameters['out'] = self._cli_output.GetID()
-      parameters['label'] = label_idx
+      parameters = {
+        'Image': imageNode.GetID(),
+        'Mask': labelNode.GetID(),
+        'param': self._parameterFile,
+        'out': self._cli_output.GetID(),
+        'label': label_idx
+      }
 
       RadiomicsCLI = slicer.modules.slicerradiomicscli
 
@@ -547,7 +553,8 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
       self.cliNode = slicer.cli.run(RadiomicsCLI, self.cliNode, parameters, wait_for_completion=self.runSync)
 
       if self.runSync:
-        # process the result. If running asynchronously, this will function is called from _onStatus (triggered by ModifiedEvent)
+        # process the result.
+        # If running asynchronously, this will function is called from _onStatus (triggered by ModifiedEvent)
         self._cli_done(self.cliNode.GetStatusString())
       elif firstRun:
         # Observer is only needed when running in asynchronous mode
@@ -580,7 +587,7 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
 
     if status == 'Completed':  # Completed without errors
       # Read the results out of the temp table and store them in the output table
-      self._processResults(self.cliNode.GetOutputText())
+      self._processResults()
 
     # Start the next extraction (when all extractions are done, this will clean up the CLI)
     self._startCLI()
@@ -635,14 +642,14 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
     self.logger.info('Initializing output table')
 
     # Define table columns
-    for k in ['Image type', 'Feature Class', 'Feature Name']:  #  ['Label', 'Image type', 'Feature Class', 'Feature Name', 'Value']:
+    for k in ['Image type', 'Feature Class', 'Feature Name']:
       col = self.outTable.AddColumn()
       col.SetName(k)
 
     self.outTable.Modified()
     self.outTable.EndModify(tableWasModified)
 
-  def _processResults(self, outputText=None):
+  def _processResults(self):
     self.logger.debug('Processing results...')
     if not self.outTable:
       self.logger.warning('Output table not set!')
@@ -676,7 +683,8 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
         self.outTable.SetCellText(rowIndex, 2, key_parts[2])
         self._featureNames[featureKey] = rowIndex
 
-      self.logger.debug('Setting column value to %s (key %s) at row %i', featureValue, featureKey, self._featureNames[featureKey])
+      self.logger.debug('Setting column value to %s (key %s) at row %i',
+                        featureValue, featureKey, self._featureNames[featureKey])
       col.SetValue(self._featureNames[featureKey], featureValue)
 
     self.outTable.Modified()
@@ -738,7 +746,7 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
     Run the actual algorithm using the provided customization file and provided image and region of interest(s) (ROIs)
 
     :param imageNode: Slicer Volume node representing the image from which features should be extracted
-    :param labelNode: Slicer Labelmap node containing the ROIs as integer encoded volume (voxel value indicates ROI id)
+    :param maskNode: Slicer Labelmap node containing the ROIs as integer encoded volume (voxel value indicates ROI id)
     or a segmentation node containing the segments of the ROIs (will be converted to binary label maps)
     :param tableNode: Slicer Table node which will hold the calculated results
     :param parameterFilePath: String file path pointing to the parameter file used to customize the extraction
@@ -756,7 +764,8 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
     if maskNode.IsA('vtkMRMLVolumeNode'):
       self._labelGenerators = chain(self._labelGenerators, self._getLabelGeneratorFromLabelMap(maskNode, imageNode))
     elif maskNode.IsA('vtkMRMLSegmentationNode'):
-      self._labelGenerators = chain(self._labelGenerators, self._getLabelGeneratorFromSegmentationNode(maskNode, imageNode))
+      self._labelGenerators = chain(self._labelGenerators,
+                                    self._getLabelGeneratorFromSegmentationNode(maskNode, imageNode))
     else:
       self.logger.error('Invalid maskNode')
       return
@@ -809,7 +818,7 @@ class SlicerRadiomicsTest(ScriptedLoadableModuleTest):
     #
     # first, get some data
     # https://github.com/Radiomics/SlicerRadiomics/releases/download/TestData-v1.0.0/lung1_binary.seg.nrrd
-    import urllib
+    from six.moves.urllib.request import urlretrieve
     dataRelease = 'v1.0.0'
     dataURLPrefix = 'https://github.com/Radiomics/SlicerRadiomics/releases/download/TestData'
     dataItems = (('lung1_image.nrrd', slicer.util.loadVolume),
@@ -825,7 +834,7 @@ class SlicerRadiomicsTest(ScriptedLoadableModuleTest):
       filePath = os.path.join(slicer.app.temporaryPath, item)
       if not os.path.exists(filePath) or os.stat(filePath).st_size == 0:
         self.logger.info('Requesting download %s from %s...\n' % (item, url))
-        self.assertTrue(urllib.urlretrieve(url, filePath), 'Failed to download from ' + url)
+        self.assertTrue(urlretrieve(url, filePath), 'Failed to download from ' + url)
       if loader:
         self.logger.info('Loading %s from %s...' % (item, filePath))
         self.assertTrue(loader(filePath), 'Failed to load ' + item)
@@ -846,11 +855,11 @@ class SlicerRadiomicsTest(ScriptedLoadableModuleTest):
     self.assertIsNotNone(logic.hasImageData(labelmapNode))
 
     featureClasses = ['firstorder']
-    settings = {}
-    settings['binWidth'] = 25
-    settings['symmetricalGLCM'] = False
-    settings['label'] = 1
-    settings['correctMask'] = True
+    settings = {
+      'binWidth': 25,
+      'symmetricalGLCM': False,
+      'label': 1
+    }
 
     enabledImageTypes = {"Original": {}}
 
