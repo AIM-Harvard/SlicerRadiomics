@@ -718,12 +718,11 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
       return
 
     self.logger.info('Generating customization file')
-    settings['correctMask'] = True
-
-    json_configuration = {}
-    json_configuration['setting'] = settings
-    json_configuration['featureClass'] = {cls: None for cls in featureClasses}
-    json_configuration['imageType'] = enabledImageTypes
+    json_configuration = {
+      'setting': settings,
+      'featureClass': {cls: None for cls in featureClasses},
+      'imageType': enabledImageTypes
+    }
 
     tempDir = slicer.app.temporaryPath
     parameterFile = os.path.join(tempDir, 'RadiomicsLogicParams.json')

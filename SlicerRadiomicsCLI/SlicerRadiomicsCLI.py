@@ -24,4 +24,5 @@ if __name__ == '__main__':
 
     sys.argv.append('--format=csv')  # Append this format to ensure a csv return format (default is txt)
     sys.argv.append('--verbosity=4')  # Print out logging with level INFO and higher
+    sys.argv.append('--setting=correctMask:True')
     parse_args()  # Entry point for the "pyradiomics" script
