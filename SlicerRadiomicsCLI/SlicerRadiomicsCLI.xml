@@ -46,5 +46,15 @@
       <channel>output</channel>
       <description><![CDATA[calculated results]]></description>
     </table>
+    <string>
+      <longflag>outdir</longflag>
+      <label>Directory for intermediate results</label>
+      <channel>input</channel>
+    </string>
+    <string>
+      <longflag>mode</longflag>
+      <label>extraction mode</label>
+      <channel>input</channel>
+    </string>
   </parameters>
 </executable>

@@ -283,6 +283,20 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
     self.parameterFilePathLineEdit = ctk.ctkPathLineEdit()
     parameterCustomizationFormLayout.addRow("Parameter File", self.parameterFilePathLineEdit)
 
+    # Radiobuttons to toggle between segment- and voxel-based extraction
+    self.modeLayout = qt.QHBoxLayout()
+    parameterCustomizationFormLayout.addRow('Extraction mode:', self.modeLayout)
+
+    self.segmentBasedExtractionRadioButton = qt.QRadioButton()
+    self.segmentBasedExtractionRadioButton.text = 'Segment-based'
+    self.segmentBasedExtractionRadioButton.checked = True
+    self.modeLayout.addWidget(self.segmentBasedExtractionRadioButton)
+
+    self.voxelBasedExtractionRadioButton = qt.QRadioButton()
+    self.voxelBasedExtractionRadioButton.text = 'Voxel-based'
+    self.voxelBasedExtractionRadioButton.checked = False
+    self.modeLayout.addWidget(self.voxelBasedExtractionRadioButton)
+
   def _addOutputSection(self):
     outputCollapsibleButton = ctk.ctkCollapsibleButton()
     outputCollapsibleButton.text = 'Output'
@@ -408,7 +422,7 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
         self.logger.error("Feature calculation failed.")
         traceback.print_exc()
 
-    else:
+    else:  # Parameter File Customization
       # Compute Features
       try:
         parameterFile = self.parameterFilePathLineEdit.currentPath
@@ -416,6 +430,7 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
                                       maskNode,
                                       self.outputTableSelector.currentNode(),
                                       parameterFile,
+                                      self.segmentBasedExtractionRadioButton.checked,
                                       self.onFinished)
       except:
         self.logger.error("Feature calculation failed.")
@@ -470,6 +485,7 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
     self._labelGenerators = None
     self._parameterFile = None
     self._labelName = None
+    self._segmentBased = True
     self._cli_output = None  # Temporary table to hold the results of the CLI script
 
     # If manual customization is used, a temporary parameter file will be generated.
@@ -544,8 +560,12 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
         'Mask': labelNode.GetID(),
         'param': self._parameterFile,
         'out': self._cli_output.GetID(),
-        'label': label_idx
+        'label': label_idx,
       }
+      if not self._segmentBased:
+        tempDir = '%s/%s' % (slicer.app.temporaryPath, 'Radiomics_extraction')
+        parameters['outdir'] = tempDir
+        parameters['mode'] = 'voxel'
 
       RadiomicsCLI = slicer.modules.slicerradiomicscli
 
@@ -580,6 +600,8 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
 
   def _cli_done(self, status):
     print("Done")
+    if self.cliNode is None:
+      return
     errorText = self.cliNode.GetErrorText()
     if errorText != '':
       errorText = str(errorText).replace('RadiomicsCLI standard error:\n\n', '')
@@ -675,6 +697,22 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
           self.logger.warning('Skipping key %s', featureKey)
         continue
 
+      if not self._segmentBased and key_parts[0] != 'diagnostics':
+        # voxel-based extraction, feature column: use the path to load the feature map as image node
+        if not os.path.isfile(featureValue):
+          self.logger.warning('Unable to find feature map file for feature %s at %s', featureKey, featureValue)
+          continue
+
+        load_success, f_map = slicer.util.loadVolume(featureValue, returnNode=True)
+        if load_success:
+          f_map.SetName('%s_%s' % (self._labelName, featureKey))
+          os.remove(featureValue)
+          slicer.mrmlScene.RemoveNode(f_map.GetStorageNode())  # Remove the reference to the temporary file
+        else:
+          self.logger.warning('Failed to load ' + f_map)
+
+        continue  # Do not add the temporary path to the table
+
       if featureKey not in self._featureNames:
         self.logger.debug('Adding featurekey %s', featureKey)
         rowIndex = self.outTable.AddEmptyRow()
@@ -739,17 +777,20 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
     with open(parameterFile, mode='w') as parameterFileFP:
       json.dump(json_configuration, parameterFileFP)
 
-    self.runCLIWithParameterFile(imageNode, maskNode, tableNode, parameterFile, callback)
+    # Force segment-based extraction when using manual customization.
+    self.runCLIWithParameterFile(imageNode, maskNode, tableNode, parameterFile, callback=callback)
 
-  def runCLIWithParameterFile(self, imageNode, maskNode, tableNode, parameterFilePath, callback=None):
+  def runCLIWithParameterFile(self, imageNode, maskNode, tableNode, parameterFilePath, segmentBased=True, callback=None):
     """
     Run the actual algorithm using the provided customization file and provided image and region of interest(s) (ROIs)
 
     :param imageNode: Slicer Volume node representing the image from which features should be extracted
     :param maskNode: Slicer Labelmap node containing the ROIs as integer encoded volume (voxel value indicates ROI id)
-    or a segmentation node containing the segments of the ROIs (will be converted to binary label maps)
+      or a segmentation node containing the segments of the ROIs (will be converted to binary label maps)
     :param tableNode: Slicer Table node which will hold the calculated results
     :param parameterFilePath: String file path pointing to the parameter file used to customize the extraction
+    :param segmentBased: boolean, default True, specifying whether segment- (True) or voxel-based (False) extraction
+      should be performed
     :param callback: Function which is invoked when the CLI is done (can be used to unlock the GUI)
     """
     if self.cliNode is not None:
@@ -759,6 +800,7 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
     self.logger.info('Feature extraction started')
 
     self._parameterFile = parameterFilePath
+    self._segmentBased = segmentBased
 
     self._labelGenerators = []
     if maskNode.IsA('vtkMRMLVolumeNode'):
