@@ -1,3 +1,4 @@
+from __future__ import print_function
 from itertools import chain
 import json
 import os

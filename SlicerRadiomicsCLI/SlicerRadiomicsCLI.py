@@ -1,6 +1,7 @@
 #!/usr/bin/env python-real
 # -*- coding: utf-8 -*-
 
+from __future__ import print_function
 import sys
 
 from radiomics.scripts import parse_args
