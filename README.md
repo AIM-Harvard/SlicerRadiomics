@@ -88,8 +88,7 @@ $ make package
 If you found a bug, or to report a reproducible problem, [submit an
 issue](https://github.com/Radiomics/SlicerRadiomics/issues/new).
 
-If you have a question about using the extension, please ask on the [mailing
-list](https://groups.google.com/forum/#!forum/pyradiomics).
+If you have a question about using the extension, please ask on the [Radiomics community section of the 3D Slicer Discourse](https://discourse.slicer.org/c/community/radiomics).
 
 # Acknowledgments
 
