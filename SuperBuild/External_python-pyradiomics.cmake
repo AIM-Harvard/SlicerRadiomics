@@ -56,8 +56,6 @@ if(NOT ${CMAKE_PROJECT_NAME}_USE_SYSTEM_${proj})
       ${PYTHON_EXECUTABLE} -m pip install PyYAML>=3.12 --global-option=--without-libyaml
         --prefix ${python_packages_DIR_NATIVE_DIR}
       )
-    # Build "PyWavelets" from source to ensure it can be imported
-    set(_no_binary --no-binary "PyWavelets")
   endif()
 
   # Install pyradiomics and its requirement
