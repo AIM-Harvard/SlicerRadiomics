@@ -6,7 +6,7 @@ import vtk, qt, ctk, slicer, logging
 import numpy
 from slicer.ScriptedLoadableModule import *
 import SimpleITK as sitk
-from radiomics import getFeatureClasses
+
 import sitkUtils
 import traceback
 
@@ -22,6 +22,7 @@ class SlicerRadiomics(ScriptedLoadableModule):
 
   def __init__(self, parent):
     ScriptedLoadableModule.__init__(self, parent)
+
     self.parent.title = 'Radiomics'
     self.parent.categories = ['Informatics']
     self.parent.dependencies = []
@@ -45,6 +46,27 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
   """Uses ScriptedLoadableModuleWidget base class, available at:
   https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
   """
+  def __init__(self, parent=None):
+
+    ScriptedLoadableModuleWidget.__init__(self, parent)
+
+    try:
+      import dateutil
+    except ModuleNotFoundError as e:
+      slicer.util.pip_install('python-dateutil')
+      import dateutil
+
+    try:
+      import pywt
+    except ModuleNotFoundError as e:
+      slicer.util.pip_install('pywavelets')
+      import pywt
+
+    try:
+      from radiomics import getFeatureClasses
+    except ModuleNotFoundError as e:
+      print("FATAL ERROR: Failed to load radiomics module!")
+
 
   def setup(self):
     ScriptedLoadableModuleWidget.setup(self)
@@ -188,6 +210,7 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
     self.featuresButtonGroup.exclusive = False
 
     # Get the feature classes dynamically
+    from radiomics import getFeatureClasses
     self.features = list(getFeatureClasses().keys())
     # Create a checkbox for each feature
     featureButtons = {}
