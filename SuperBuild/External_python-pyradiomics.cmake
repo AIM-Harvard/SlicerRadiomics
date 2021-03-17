@@ -45,18 +45,7 @@ if(NOT ${CMAKE_PROJECT_NAME}_USE_SYSTEM_${proj})
   set(python_packages_DIR "${CMAKE_BINARY_DIR}/python-packages-install")
   file(TO_NATIVE_PATH ${python_packages_DIR} python_packages_DIR_NATIVE_DIR)
 
-  set(_install_pyyaml)
   set(_no_binary "")
-
-  if(WIN32)
-    # Install PyYAML without libyaml to ensure it can be imported.
-    set(_install_pyyaml COMMAND ${CMAKE_COMMAND}
-      -E env
-        PYTHONNOUSERSITE=1
-      ${PYTHON_EXECUTABLE} -m pip install PyYAML>=3.12 --global-option=--without-libyaml
-        --prefix ${python_packages_DIR_NATIVE_DIR}
-      )
-  endif()
 
   # Install pyradiomics and its requirement
   set(_install_pyradiomics COMMAND ${CMAKE_COMMAND}
@@ -76,7 +65,6 @@ if(NOT ${CMAKE_PROJECT_NAME}_USE_SYSTEM_${proj})
     CONFIGURE_COMMAND ""
     BUILD_COMMAND ""
     INSTALL_COMMAND ${CMAKE_COMMAND} -E  echo_append ""
-    ${_install_pyyaml}
     ${_install_pyradiomics}
     DEPENDS
       ${${proj}_DEPENDENCIES}
