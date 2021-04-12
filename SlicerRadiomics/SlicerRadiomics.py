@@ -538,9 +538,10 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
 
     for segmentID in range(segmentation.GetNumberOfSegments()):
       segment = segmentation.GetNthSegment(segmentID)
-      segmentLabelmap = segment.GetRepresentation(
-        vtkSegmentationCore.vtkSegmentationConverter.GetSegmentationBinaryLabelmapRepresentationName())
-      if not segLogic.CreateLabelmapVolumeFromOrientedImageData(segmentLabelmap, segmentLabelmapNode):
+      segmentNames = vtk.vtkStringArray()
+      segmentNames.InsertNextValue(segment.GetName())
+
+      if not slicer.vtkSlicerSegmentationsModuleLogic.ExportSegmentsToLabelmapNode(segmentationNode, segmentNames, segmentLabelmapNode, imageNode):
         self.logger.error("Failed to convert label map")
         continue
       if not segmentLabelmapNode:
