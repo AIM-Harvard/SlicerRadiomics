@@ -4,11 +4,10 @@ slicer_check_cmake_https()
 #-----------------------------------------------------------------------------
 # Git protocol option
 #-----------------------------------------------------------------------------
-option(${CMAKE_PROJECT_NAME}_USE_GIT_PROTOCOL "If behind a firewall turn this off to use http instead." ON)
-
-set(git_protocol "git")
-if(NOT ${CMAKE_PROJECT_NAME}_USE_GIT_PROTOCOL)
-  set(git_protocol "http")
+option(${CMAKE_PROJECT_NAME}_USE_GIT_PROTOCOL "Turn off if using GitHub or behind a firewall." OFF)
+set(git_protocol "https")
+if(${CMAKE_PROJECT_NAME}_USE_GIT_PROTOCOL)
+  set(git_protocol "git")
 endif()
 
 #-----------------------------------------------------------------------------
