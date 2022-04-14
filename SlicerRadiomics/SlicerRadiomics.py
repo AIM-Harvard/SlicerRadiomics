@@ -536,18 +536,19 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
     segmentLabelmapNode = slicer.vtkMRMLLabelMapVolumeNode()
     slicer.mrmlScene.AddNode(segmentLabelmapNode)
 
-    for segmentID in range(segmentation.GetNumberOfSegments()):
-      segment = segmentation.GetNthSegment(segmentID)
-      segmentNames = vtk.vtkStringArray()
-      segmentNames.InsertNextValue(segment.GetName())
+    for segmentIndex in range(segmentation.GetNumberOfSegments()):
+      segmentID = segmentation.GetNthSegmentID(segmentIndex)
+      segmentIDs = vtk.vtkStringArray()
+      segmentIDs.InsertNextValue(segmentID)
 
-      if not slicer.vtkSlicerSegmentationsModuleLogic.ExportSegmentsToLabelmapNode(segmentationNode, segmentNames, segmentLabelmapNode, imageNode):
+      if not slicer.vtkSlicerSegmentationsModuleLogic.ExportSegmentsToLabelmapNode(segmentationNode, segmentIDs, segmentLabelmapNode, imageNode):
         self.logger.error("Failed to convert label map")
         continue
       if not segmentLabelmapNode:
         self.logger.warning('no node')
         continue
-      yield '%s_segment_%s' % (segmentationNode.GetName(), segment.GetName()), segmentLabelmapNode, 1, imageNode
+      segmentName = segmentation.GetNthSegment(segmentIndex).GetName()
+      yield '%s_segment_%s' % (segmentationNode.GetName(), segmentName), segmentLabelmapNode, 1, imageNode
 
     displayNode = segmentLabelmapNode.GetDisplayNode()
     if displayNode:
