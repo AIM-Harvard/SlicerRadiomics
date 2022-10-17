@@ -281,7 +281,7 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
     self.binWidthSliderWidget.singleStep = 1
     self.binWidthSliderWidget.decimals = 2
     self.binWidthSliderWidget.minimum = 0.01
-    self.binWidthSliderWidget.maximum = 100
+    self.binWidthSliderWidget.maximum = 200
     self.binWidthSliderWidget.value = 25
     self.binWidthSliderWidget.toolTip = 'Set the bin width'
     settingsFormLayout.addRow('Bin Width', self.binWidthSliderWidget)
