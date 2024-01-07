@@ -31,7 +31,7 @@ if(NOT ${CMAKE_PROJECT_NAME}_USE_SYSTEM_${proj})
 
   ExternalProject_SetIfNotDefined(
     ${CMAKE_PROJECT_NAME}_${proj}_GIT_TAG
-    "origin/master"
+    "146e3bd0971336913f9c9f49ce535bc4663ca5c2"
     QUIET
     )
 
