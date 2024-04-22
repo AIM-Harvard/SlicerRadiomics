@@ -6,8 +6,8 @@ project(SlicerRadiomics)
 # Extension meta-information
 set(EXTENSION_HOMEPAGE "https://www.slicer.org/wiki/Documentation/Nightly/Extensions/Radiomics")
 set(EXTENSION_CATEGORY "Informatics")
-set(EXTENSION_CONTRIBUTORS "Andrey Fedorov (BWH), Nicole Aucoin (BWH), Jean-Christophe Fillion-Robin (Kitware), Joost van Griethuysen (AVL-NKI), Hugo Aerts (DFCI)")
-set(EXTENSION_DESCRIPTION "This is an extension using SuperBuild to build a separate library, pyradiomics, and a dependent scripted Module, SlicerRadiomics ")
+set(EXTENSION_CONTRIBUTORS "Andrey Fedorov (SPL), Joost van Griethuysen (NKI), Nicole Aucoin (SPL), Jean-Christophe Fillion-Robin (Kitware), Steve Pieper (Isomics), Hugo Aerts (DFCI)")
+set(EXTENSION_DESCRIPTION "Radiomics extension provides a 3D Slicer interface to the pyradiomics library. pyradiomics is an open-source python package for the extraction of Radiomics features from medical imaging.")
 set(EXTENSION_ICONURL "https://raw.githubusercontent.com/AIM-Harvard/SlicerRadiomics/master/resources/radiomics_icon128.png")
 set(EXTENSION_SCREENSHOTURLS "https://raw.githubusercontent.com/AIM-Harvard/SlicerRadiomics/master/resources/SlicerRadiomics-lung.png")
 set(EXTENSION_DEPENDS "NA") # Specified as a space separated string, a list or 'NA' if any
