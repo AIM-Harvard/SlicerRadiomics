@@ -4,6 +4,8 @@ import json
 import os
 import vtk, qt, ctk, slicer, logging
 import numpy
+from slicer.i18n import tr as _
+from slicer.i18n import translate
 from slicer.ScriptedLoadableModule import *
 import SimpleITK as sitk
 
@@ -23,19 +25,19 @@ class SlicerRadiomics(ScriptedLoadableModule):
   def __init__(self, parent):
     ScriptedLoadableModule.__init__(self, parent)
 
-    self.parent.title = 'Radiomics'
-    self.parent.categories = ['Informatics']
+    self.parent.title = _('Radiomics')
+    self.parent.categories = [translate("qSlicerAbstractCoreModule", "Informatics")]
     self.parent.dependencies = []
     self.parent.contributors = ["Andrey Fedorov (BWH), Nicole Aucoin (BWH), Jean-Christophe Fillion-Robin (Kitware), "
                                 "Joost van Griethuysen (AVL-NKI), Hugo Aerts (DFCI)"]
-    self.parent.helpText = """
+    self.parent.helpText = _("""
     This is a scripted loadable module bundled in the SlicerRadomics extension.
     It gives access to the radiomics feature calculation classes implemented in pyradiomics library.
     See more details at http://pyradiomics.readthedocs.io/.
-    """
-    self.parent.acknowledgementText = """
+    """)
+    self.parent.acknowledgementText = _("""
     This work was partially supported by NIH/NCI ITCR program grant U24 CA194354.
-    """
+    """)
 
 
 #
@@ -94,8 +96,8 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
     #
     # Apply Button
     #
-    self.applyButton = qt.QPushButton('Apply')
-    self.applyButton.toolTip = 'Run the algorithm.'
+    self.applyButton = qt.QPushButton(_('Apply'))
+    self.applyButton.toolTip = _('Run the algorithm.')
     self.applyButton.enabled = False
     self.layout.addWidget(self.applyButton)
 
@@ -126,7 +128,7 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
 
   def _addInputVolumeSection(self):
     inputVolumeCollapsibleButton = ctk.ctkCollapsibleButton()
-    inputVolumeCollapsibleButton.text = 'Select Input Volume and Segmentation'
+    inputVolumeCollapsibleButton.text = _('Select Input Volume and Segmentation')
     self.layout.addWidget(inputVolumeCollapsibleButton)
 
     # Layout within the dummy collapsible button
@@ -144,8 +146,8 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
     self.inputVolumeSelector.showHidden = False
     self.inputVolumeSelector.showChildNodeTypes = False
     self.inputVolumeSelector.setMRMLScene(slicer.mrmlScene)
-    self.inputVolumeSelector.setToolTip('Pick the input image for the feature calculation.')
-    inputVolumeFormLayout.addRow('Input Image Volume: ', self.inputVolumeSelector)
+    self.inputVolumeSelector.setToolTip(_('Pick the input image for the feature calculation.'))
+    inputVolumeFormLayout.addRow(_('Input Image Volume: '), self.inputVolumeSelector)
 
     #
     # input mask volume selector
@@ -159,13 +161,13 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
     self.inputMaskSelector.showHidden = False
     self.inputMaskSelector.showChildNodeTypes = False
     self.inputMaskSelector.setMRMLScene(slicer.mrmlScene)
-    self.inputMaskSelector.setToolTip('Pick the regions for feature calculation - '
-                                      'defined by a segmentation or labelmap volume node.')
-    inputVolumeFormLayout.addRow('Input regions: ', self.inputMaskSelector)
+    self.inputMaskSelector.setToolTip(_('Pick the regions for feature calculation - '
+                                      'defined by a segmentation or labelmap volume node.'))
+    inputVolumeFormLayout.addRow(_('Input regions: '), self.inputMaskSelector)
 
   def _addCustomizationSection(self):
     customizationCollapsibleButton = ctk.ctkCollapsibleButton()
-    customizationCollapsibleButton.text = 'Extraction Customization'
+    customizationCollapsibleButton.text = _('Extraction Customization')
     customizationCollapsibleButton.collapsed = True
     self.layout.addWidget(customizationCollapsibleButton)
 
@@ -176,19 +178,19 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
     #
 
     self.manualCustomizationRadioButton = qt.QRadioButton()
-    self.manualCustomizationRadioButton.text = 'Manual Customization'
+    self.manualCustomizationRadioButton.text = _('Manual Customization')
     self.manualCustomizationRadioButton.checked = True
     customizationFormLayout.layout().addWidget(self.manualCustomizationRadioButton)
 
     self.parameterFileCustomizationRadioButton = qt.QRadioButton()
-    self.parameterFileCustomizationRadioButton.text = 'Parameter File Customization'
+    self.parameterFileCustomizationRadioButton.text = _('Parameter File Customization')
     self.parameterFileCustomizationRadioButton.checked = False
     customizationFormLayout.layout().addWidget(self.parameterFileCustomizationRadioButton)
 
     #
     # Manual Customization
     #
-    self.manualCustomizationGroupBox = qt.QGroupBox('Manual Customization')
+    self.manualCustomizationGroupBox = qt.QGroupBox(_('Manual Customization'))
     self.manualCustomizationGroupBox.visible = True
     # self.manualCustomizationGroupBox.checkable = True
     customizationFormLayout.addWidget(self.manualCustomizationGroupBox)
@@ -197,14 +199,14 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
 
     # Feature Class section
     featureClassCollapsibleButton = ctk.ctkCollapsibleButton()
-    featureClassCollapsibleButton.text = 'Feature Classes'
+    featureClassCollapsibleButton.text = _('Feature Classes')
     featureClassCollapsibleButton.collapsed = False
     manualCustomizationFormLayout.addWidget(featureClassCollapsibleButton)
 
     featureClassLayout = qt.QFormLayout(featureClassCollapsibleButton)
 
     self.featuresLayout = qt.QHBoxLayout()
-    featureClassLayout.addRow('Features:', self.featuresLayout)
+    featureClassLayout.addRow(_('Features:'), self.featuresLayout)
 
     self.featuresButtonGroup = qt.QButtonGroup(self.featuresLayout)
     self.featuresButtonGroup.exclusive = False
@@ -227,20 +229,20 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
 
     # Add buttons to select all or none
     self.buttonsLayout = qt.QHBoxLayout()
-    featureClassLayout.addRow('Toggle Features:', self.buttonsLayout)
+    featureClassLayout.addRow(_('Toggle Features:'), self.buttonsLayout)
 
-    self.calculateAllFeaturesButton = qt.QPushButton('All Features')
-    self.calculateAllFeaturesButton.toolTip = 'Calculate all feature classes.'
+    self.calculateAllFeaturesButton = qt.QPushButton(_('All Features'))
+    self.calculateAllFeaturesButton.toolTip = _('Calculate all feature classes.')
     self.calculateAllFeaturesButton.enabled = True
     self.buttonsLayout.addWidget(self.calculateAllFeaturesButton)
-    self.calculateNoFeaturesButton = qt.QPushButton('No Features')
-    self.calculateNoFeaturesButton.toolTip = 'Calculate no feature classes.'
+    self.calculateNoFeaturesButton = qt.QPushButton(_('No Features'))
+    self.calculateNoFeaturesButton.toolTip = _('Calculate no feature classes.')
     self.calculateNoFeaturesButton.enabled = True
     self.buttonsLayout.addWidget(self.calculateNoFeaturesButton)
 
     # Resampling and Filtering
     filteringCollapsibleButton = ctk.ctkCollapsibleButton()
-    filteringCollapsibleButton.text = 'Resampling and Filtering'
+    filteringCollapsibleButton.text = _('Resampling and Filtering')
     filteringCollapsibleButton.collapsed = False
     manualCustomizationFormLayout.addRow(filteringCollapsibleButton)
     # Layout within the dummy collapsible button
@@ -248,28 +250,28 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
 
     # Resampling
     self.resampledVoxelSize = qt.QLineEdit()
-    self.resampledVoxelSize.toolTip = 'Three floating-point numbers separated by comma defining the resampled pixel ' \
-                                      'size (mm).'
-    filteringFormLayout.addRow('Resampled voxel size', self.resampledVoxelSize)
+    self.resampledVoxelSize.toolTip = _('Three floating-point numbers separated by comma defining the resampled pixel '
+                                      'size (mm).')
+    filteringFormLayout.addRow(_('Resampled voxel size'), self.resampledVoxelSize)
 
     # LoG kernel sizes. default to 5 (?)
     self.logKernelSizes = qt.QLineEdit()
-    self.logKernelSizes.toolTip = 'Laplacian of Gaussian filter kernel sizes (mm), separated by comma. ' \
-                                  'If empty, no LoG filtering will be applied.'
-    filteringFormLayout.addRow('LoG kernel sizes', self.logKernelSizes)
+    self.logKernelSizes.toolTip = _('Laplacian of Gaussian filter kernel sizes (mm), separated by comma. '
+                                  'If empty, no LoG filtering will be applied.')
+    filteringFormLayout.addRow(_('LoG kernel sizes'), self.logKernelSizes)
 
     # Wavelet
     self.waveletCheckBox = qt.QCheckBox()
     self.waveletCheckBox.checked = 0
-    self.waveletCheckBox.toolTip = 'If checked, PyRadiomics will calculate features on the image after applying ' \
-                                   'wavelet transformation'
-    filteringFormLayout.addRow('Wavelet-based features', self.waveletCheckBox)
+    self.waveletCheckBox.toolTip = _('If checked, PyRadiomics will calculate features on the image after applying '
+                                   'wavelet transformation')
+    filteringFormLayout.addRow(_('Wavelet-based features'), self.waveletCheckBox)
 
     #
     # Feature calculation settings
     #
     settingsCollapsibleButton = ctk.ctkCollapsibleButton()
-    settingsCollapsibleButton.text = 'Settings'
+    settingsCollapsibleButton.text = _('Settings')
     settingsCollapsibleButton.collapsed = False
     manualCustomizationFormLayout.addWidget(settingsCollapsibleButton)
 
@@ -283,20 +285,20 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
     self.binWidthSliderWidget.minimum = 0.01
     self.binWidthSliderWidget.maximum = 200
     self.binWidthSliderWidget.value = 25
-    self.binWidthSliderWidget.toolTip = 'Set the bin width'
-    settingsFormLayout.addRow('Bin Width', self.binWidthSliderWidget)
+    self.binWidthSliderWidget.toolTip = _('Set the bin width')
+    settingsFormLayout.addRow(_('Bin Width'), self.binWidthSliderWidget)
 
     # symmetricalGLCM flag, defaults to false
     self.symmetricalGLCMCheckBox = qt.QCheckBox()
     self.symmetricalGLCMCheckBox.checked = 1
-    self.symmetricalGLCMCheckBox.toolTip = 'Use a symmetrical GLCM matrix'
-    settingsFormLayout.addRow('Enforce Symmetrical GLCM', self.symmetricalGLCMCheckBox)
+    self.symmetricalGLCMCheckBox.toolTip = _('Use a symmetrical GLCM matrix')
+    settingsFormLayout.addRow(_('Enforce Symmetrical GLCM'), self.symmetricalGLCMCheckBox)
 
     #
     # Parameter File Customization
     #
 
-    self.parameterCustomizationGroupBox = qt.QGroupBox('Parameter File Customization')
+    self.parameterCustomizationGroupBox = qt.QGroupBox(_('Parameter File Customization'))
     self.parameterCustomizationGroupBox.visible = False
     # self.parameterCustomizationGroupBox.checkable = True
     customizationFormLayout.addWidget(self.parameterCustomizationGroupBox)
@@ -305,11 +307,11 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
 
     # Path edit to select parameter file
     self.parameterFilePathLineEdit = ctk.ctkPathLineEdit()
-    parameterCustomizationFormLayout.addRow("Parameter File", self.parameterFilePathLineEdit)
+    parameterCustomizationFormLayout.addRow(_("Parameter File"), self.parameterFilePathLineEdit)
 
   def _addOutputSection(self):
     outputCollapsibleButton = ctk.ctkCollapsibleButton()
-    outputCollapsibleButton.text = 'Output'
+    outputCollapsibleButton.text = _('Output')
     self.layout.addWidget(outputCollapsibleButton)
 
     outputFormLayout = qt.QFormLayout(outputCollapsibleButton)
@@ -317,9 +319,9 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
     # verbose logging flag, defaults to false
     self.verboseCheckBox = qt.QCheckBox()
     self.verboseCheckBox.checked = 0
-    self.verboseCheckBox.toolTip = 'If checked, PyRadiomics outputs log messages from level DEBUG and higher ' \
-                                   '(instead of INFO and higher)'
-    outputFormLayout.addRow('Verbose Output', self.verboseCheckBox)
+    self.verboseCheckBox.toolTip = _('If checked, PyRadiomics outputs log messages from level DEBUG and higher '
+                                   '(instead of INFO and higher)')
+    outputFormLayout.addRow(_('Verbose Output'), self.verboseCheckBox)
 
     # Output Table
     self.outputTableSelector = slicer.qMRMLNodeComboBox()
@@ -330,9 +332,9 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
     self.outputTableSelector.removeEnabled = True
     self.outputTableSelector.noneEnabled = False
     self.outputTableSelector.setMRMLScene(slicer.mrmlScene)
-    self.outputTableSelector.toolTip = 'Select the table where features will be saved, resets feature values on ' \
-                                       'each run.'
-    outputFormLayout.addRow('Output table:', self.outputTableSelector)
+    self.outputTableSelector.toolTip = _('Select the table where features will be saved, resets feature values on '
+                                       'each run.')
+    outputFormLayout.addRow(_('Output table:'), self.outputTableSelector)
 
   def cleanup(self):
     pass
@@ -380,7 +382,7 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
     logic = SlicerRadiomicsLogic()
 
     # Lock GUI
-    self.applyButton.text = 'Working...'
+    self.applyButton.text = _('Working...')
     self.applyButton.setEnabled(False)
     slicer.app.processEvents()
 
@@ -459,7 +461,7 @@ class SlicerRadiomicsWidget(ScriptedLoadableModuleWidget):
           tv_header.resizeSection(j, 200)
     # Unlock GUI
     self.applyButton.setEnabled(True)
-    self.applyButton.text = 'Apply'
+    self.applyButton.text = _('Apply')
 
 
 #
