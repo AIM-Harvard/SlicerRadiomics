@@ -516,7 +516,7 @@ class SlicerRadiomicsLogic(ScriptedLoadableModuleLogic):
   # Label generators to generate single ROI labels from either labelmapNode or segmentationNode input
   @staticmethod
   def _getLabelGeneratorFromLabelMap(labelNode, imageNode):
-    combinedLabelImage = sitk.ReadImage(sitkUtils.GetSlicerITKReadWriteAddress(labelNode))
+    combinedLabelImage = sitkUtils.PullVolumeFromSlicer(labelNode)
     combinedLabelArray = sitk.GetArrayFromImage(combinedLabelImage)
     labels = numpy.unique(combinedLabelArray)
 
